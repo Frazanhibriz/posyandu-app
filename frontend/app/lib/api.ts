@@ -1,0 +1,190 @@
+import { Balita, Pengukuran, Absensi, BerandaStats } from "@/types";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+// Client-side cookie utilities
+function setCookie(name: string, value: string, days: number) {
+  if (typeof document === "undefined") return;
+  const expires = new Date();
+  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+}
+
+function deleteCookie(name: string) {
+  if (typeof document === "undefined") return;
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Lax`;
+}
+
+export function getAuthToken(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp('(^| )session=([^;]+)'));
+  if (match) return match[2];
+  return null;
+}
+
+// Wrapper fetch untuk otomatis nambah token
+async function authFetch(url: string, options: RequestInit = {}) {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string> || {}),
+  };
+  
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_URL}${url}`, {
+    ...options,
+    headers,
+  });
+
+  if (response.status === 401) {
+    deleteCookie("session");
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+    throw new Error("Sesi berakhir, silakan login kembali.");
+  }
+
+  return response;
+}
+
+// Authentication
+export async function login(identifier: string, password: string): Promise<{ success: boolean; token?: string; error?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.message || "Login gagal" };
+    }
+    setCookie("session", data.access_token, 7);
+    return { success: true, token: data.access_token };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Terjadi kesalahan jaringan" };
+  }
+}
+
+export async function logout(): Promise<void> {
+  deleteCookie("session");
+}
+
+// Dashboard
+export async function getDashboardStats(): Promise<BerandaStats> {
+  const res = await authFetch("/beranda");
+  if (!res.ok) throw new Error("Gagal mengambil statistik beranda");
+  return res.json();
+}
+
+// Balita
+export async function getBalitaList(): Promise<Balita[]> {
+  const res = await authFetch("/balita");
+  if (!res.ok) throw new Error("Gagal mengambil data balita");
+  return res.json();
+}
+
+export async function getBalitaById(id: string): Promise<Balita | null> {
+  const res = await authFetch(`/balita/${id}`);
+  if (!res.ok) {
+    if (res.status === 404) return null;
+    throw new Error("Gagal mengambil detail balita");
+  }
+  return res.json();
+}
+
+export async function createBalita(balita: any): Promise<Balita> {
+  const res = await authFetch("/balita", {
+    method: "POST",
+    body: JSON.stringify(balita),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || "Gagal menambah balita");
+  }
+  return res.json();
+}
+
+export async function updateBalita(id: string, updatedFields: Partial<Balita>): Promise<void> {
+  const res = await authFetch(`/balita/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(updatedFields),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || "Gagal update balita");
+  }
+}
+
+export async function deleteBalita(id: string, alasan: string): Promise<void> {
+  const res = await authFetch(`/balita/${id}`, {
+    method: "DELETE",
+    body: JSON.stringify({ alasan }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || "Gagal menghapus balita");
+  }
+}
+
+// Pengukuran
+export async function addPengukuran(id: string, pengukuran: Partial<Pengukuran>): Promise<void> {
+  const { lingkarLengan, ...rest } = pengukuran;
+  const payload = {
+    balitaId: id,
+    lila: lingkarLengan,
+    ...rest,
+  };
+  const res = await authFetch("/pengukuran", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || "Gagal menambah pengukuran");
+  }
+}
+
+// Absensi
+export async function getAbsensiList(bulan?: number, tahun?: number): Promise<Absensi[]> {
+  let query = "";
+  if (bulan && tahun) {
+    query = `?bulan=${bulan}&tahun=${tahun}`;
+  }
+  const res = await authFetch(`/absensi${query}`);
+  if (!res.ok) throw new Error("Gagal mengambil data absensi");
+  return res.json();
+}
+
+export async function bulkUpdateAbsensi(absensiUpdates: { balitaId: string; isHadir: boolean; bulan: number; tahun: number }[]): Promise<void> {
+  if (absensiUpdates.length === 0) return;
+  const first = absensiUpdates[0];
+  const payload = {
+    bulan: first.bulan,
+    tahun: first.tahun,
+    items: absensiUpdates.map(({ balitaId, isHadir }) => ({
+      balitaId,
+      isHadir,
+    })),
+  };
+  const res = await authFetch("/absensi/bulk", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || "Gagal update absensi");
+  }
+}
+
+export async function getEvaluasi(balitaId: string): Promise<{ analisis: string }> {
+  const res = await authFetch(`/pengukuran/evaluasi/${balitaId}`);
+  if (!res.ok) {
+    throw new Error("Gagal mengambil evaluasi balita");
+  }
+  return res.json();
+}
+

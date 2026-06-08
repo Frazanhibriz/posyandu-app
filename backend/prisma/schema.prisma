@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  KADER
+}
+
+enum Gender {
+  LAKI_LAKI
+  PEREMPUAN
+}
+
+enum AlasanHapus {
+  PINDAH_ALAMAT
+  USIA_LEBIH_60_BULAN
+  PERMINTAAN_WALI
+  OTOMATIS_SISTEM // Untuk yang > 60 bulan otomatis
+}
+
+model User {
+  id        String   @id @default(uuid())
+  nik       String   @unique
+  username  String   @unique
+  email     String   @unique
+  nama      String
+  password  String
+  role      Role     @default(KADER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  pengukurans Pengukuran[]
+}
+
+model Balita {
+  id                String   @id @default(uuid())
+  nik               String?  @unique // Optional
+  nama              String
+  jenisKelamin      Gender
+  tglLahir          DateTime
+  anakKe            Int
+  rt                Int
+  rw                Int
+  namaWali          String   // Required
+  nikWali           String?  // Optional
+  noWhatsapp        String   // Required & Validated di backend
+  alamat            String
+  
+  // Data Lahir & Medis
+  panjangLahir      Float
+  beratLahir        Float
+  lingkarKepalaLahir Float
+  usiaKehamilan     Int      // Dalam minggu
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relasi
+  pengukurans       Pengukuran[]
+  absensis          Absensi[]
+}
+
+model Pengukuran {
+  id            String   @id @default(uuid())
+  tglUkur       DateTime @default(now()) // Bisa diganti manual (Backdate)
+  beratBadan    Float    
+  tinggiBadan   Float    
+  lingkarKepala Float?   
+  lila          Float?   // Lingkar Lengan Atas (Logika > 6 bln di Backend)
+  catatan       String?
+  
+  balitaId      String
+  balita        Balita   @relation(fields: [balitaId], references: [id], onDelete: Cascade)
+  
+  kaderId       String
+  kader         User     @relation(fields: [kaderId], references: [id])
+}
+
+model Absensi {
+  id         String   @id @default(uuid())
+  tglHadir   DateTime @default(now()) // Bisa diganti manual (Backdate)
+  isHadir    Boolean  @default(false) // Untuk switch HADIR/TIDAK
+  keterangan String?  // Sakit, Izin, dll
+  
+  balitaId   String
+  balita     Balita   @relation(fields: [balitaId], references: [id], onDelete: Cascade)
+}
+
+// Tabel Khusus Log Penghapusan (Archive)
+model BalitaTerhapus {
+  id            String      @id @default(uuid())
+  namaBalita    String
+  nikBalita     String?
+  namaWali      String
+  alasan        AlasanHapus
+  tglTerhapus   DateTime    @default(now())
+  catatan       String?     // Tambahan info jika diperlukan
+}
