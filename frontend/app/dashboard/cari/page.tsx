@@ -14,6 +14,9 @@ function CariBalitaContent() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [balitaList, setBalitaList] = useState<Balita[]>([]);
+  const isMeasurementMode = searchParams.get("mode") === "ukur";
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
 
   useEffect(() => {
     getBalitaList().then(setBalitaList);
@@ -26,13 +29,30 @@ function CariBalitaContent() {
     }
   }, [searchParams]);
 
-  const filteredData = balitaList.filter((balita) =>
+  const selectableBalitaList = isMeasurementMode
+    ? balitaList.filter((balita) => {
+        const isMeasuredThisMonth = balita.pengukuran?.some(
+          (p) => p.bulan === currentMonth && p.tahun === currentYear
+        );
+        return !isMeasuredThisMonth;
+      })
+    : balitaList;
+
+  const filteredData = selectableBalitaList.filter((balita) =>
     balita.nama.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const emptyTitle = isMeasurementMode && selectableBalitaList.length === 0
+    ? "Semua balita sudah diukur bulan ini"
+    : "Yah, namanya tidak ketemu...";
+
+  const emptyDescription = isMeasurementMode && selectableBalitaList.length === 0
+    ? "Tidak ada balita yang perlu diinput pengukurannya untuk periode saat ini."
+    : "Coba cek ejaannya lagi ya!";
+
   return (
     <div className="min-h-screen bg-gray-50 text-black font-sans">
-      <Navbar title="Pilih Balita" />
+      <Navbar title={isMeasurementMode ? "Input Pengukuran" : "Pilih Balita"} />
 
       <main className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6 mt-2">
         
@@ -40,8 +60,18 @@ function CariBalitaContent() {
           <Link href="/dashboard" className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-colors bg-white shrink-0 shadow-sm">
             <ArrowLeft size={20} className="text-black" />
           </Link>
-          <h1 className="text-xl font-bold text-black">Pilih balita untuk diukur</h1>
+          <h1 className="text-xl font-bold text-black">
+            {isMeasurementMode ? "Pilih balita yang belum diukur" : "Pilih balita"}
+          </h1>
         </div>
+
+        {isMeasurementMode && (
+          <div className="rounded-xl border border-teal-100 bg-[#f0fbf9] p-4 shadow-sm">
+            <p className="text-xs font-bold text-[#0d9488]">
+              Hanya menampilkan balita yang belum diukur pada bulan ini.
+            </p>
+          </div>
+        )}
 
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10" size={20} />
@@ -59,7 +89,11 @@ function CariBalitaContent() {
             filteredData.map((balita) => (
               <Card 
                 key={balita.id} 
-                onClick={() => router.push(`/dashboard/balita/${balita.id}`)}
+                onClick={() => router.push(
+                  isMeasurementMode
+                    ? `/dashboard/balita/${balita.id}/ukur`
+                    : `/dashboard/balita/${balita.id}`
+                )}
                 className="p-5 flex items-center gap-4 cursor-pointer hover:border-gray-300 transition-all border border-gray-100 shadow-sm rounded-xl bg-white"
               >
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
@@ -72,6 +106,11 @@ function CariBalitaContent() {
                   <p className="text-xs text-gray-700 mt-1">
                     {balita.jenisKelamin === "PEREMPUAN" ? "Perempuan" : "Laki-laki"}
                   </p>
+                  {isMeasurementMode && (
+                    <p className="text-[10px] font-bold text-orange-600 mt-2">
+                      Belum diukur bulan ini
+                    </p>
+                  )}
                   <p className="text-xs text-gray-700 mt-0.5">
                     {balita.namaWali} • {balita.alamat} RT {balita.rt}/RW {balita.rw}
                   </p>
@@ -83,8 +122,8 @@ function CariBalitaContent() {
               <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
                 <Search size={30} />
               </div>
-              <p className="text-sm font-bold text-gray-400">Yah, namanya tidak ketemu...</p>
-              <p className="text-[10px] text-gray-500">Coba cek ejaannya lagi ya!</p>
+              <p className="text-sm font-bold text-gray-400">{emptyTitle}</p>
+              <p className="text-[10px] text-gray-500">{emptyDescription}</p>
             </div>
           )}
         </div>
