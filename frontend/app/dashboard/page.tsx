@@ -90,7 +90,7 @@ export default function DashboardPage() {
                         onClick={() => {
                           setSearchTerm(item.nama);
                           setIsFocused(false);
-                          router.push(`/dashboard/cari?name=${item.nama}`);
+                          router.push(`/dashboard/balita/${item.id}`);
                         }}
                         className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors text-left group"
                       >
@@ -154,7 +154,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-3 gap-4">
                 {[
                   { icon: Plus, label: "Tambah Balita", onClick: () => router.push("/dashboard/balita/tambah") },
-                  { icon: PencilLine, label: "Input Pengukuran", onClick: () => router.push("/dashboard/cari") },
+                  { icon: PencilLine, label: "Input Pengukuran", onClick: () => router.push("/dashboard/cari?mode=ukur") },
                   { icon: PackageCheck, label: "Absen Bulanan", onClick: () => router.push("/dashboard/absen") }
                 ].map((action, idx) => (
                   <button key={idx} onClick={action.onClick} className="group flex flex-col items-center justify-center gap-3 bg-[#f0fbf9] py-5 px-2 rounded-2xl transition-all duration-300 hover:bg-white hover:shadow-lg hover:shadow-teal-100 hover:-translate-y-1 hover:scale-[1.02] active:scale-95 border border-transparent hover:border-teal-100 cursor-pointer">

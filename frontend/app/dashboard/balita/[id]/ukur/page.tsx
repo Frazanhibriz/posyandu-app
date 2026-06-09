@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Baby, ChevronDown } from "lucide-react";
+import { ArrowLeft, Baby } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Card from "@/components/ui/Card";
@@ -71,9 +71,11 @@ export default function UkurBalitaPage() {
   const [berat, setBerat] = useState("");
   const [lingkarKepala, setLingkarKepala] = useState("");
   const [lingkarLengan, setLingkarLengan] = useState("");
-  const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-  const currentMonthName = months[new Date().getMonth()];
-  const [selectedMonth, setSelectedMonth] = useState(currentMonthName);
+  const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth() + 1;
+  const currentYear = currentDate.getFullYear();
+  const currentMonthName = monthNames[currentMonth - 1];
 
   useEffect(() => {
     getBalitaById(id).then((found) => {
@@ -110,13 +112,9 @@ export default function UkurBalitaPage() {
       return;
     }
 
-    // map month string to integer index
-    const bulanIndex = months.indexOf(selectedMonth) + 1;
-    const dbYear = new Date().getFullYear(); // e.g. 2026
-
     const newMeasurement: Omit<Pengukuran, 'id'> = {
-      bulan: bulanIndex,
-      tahun: dbYear,
+      bulan: currentMonth,
+      tahun: currentYear,
       beratBadan: parseFloat(berat),
       tinggiBadan: parseFloat(tinggi),
       lingkarKepala: lingkarKepala ? parseFloat(lingkarKepala) : null,
@@ -155,20 +153,16 @@ export default function UkurBalitaPage() {
           </div>
         </Card>
 
-        <div className="space-y-2">
-          <label className="text-xs font-bold text-gray-500 ml-1">Bulan Pengukuran</label>
-          <div className="relative">
-            <select 
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full appearance-none bg-white border border-gray-200 rounded-xl p-4 text-sm text-black font-bold focus:outline-none focus:ring-1 focus:ring-teal-500 shadow-sm cursor-pointer"
-            >
-              {months.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-            <ChevronDown size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-black pointer-events-none" />
-          </div>
+        <div className="rounded-xl border border-teal-100 bg-[#f0fbf9] p-4 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#0d9488]">
+            Periode Pengukuran
+          </p>
+          <p className="mt-1 text-sm font-black text-gray-900">
+            {currentMonthName} {currentYear}
+          </p>
+          <p className="mt-2 text-xs font-medium leading-relaxed text-gray-600">
+            Input pengukuran ini hanya untuk bulan saat ini. Pengukuran bulan lain dilakukan melalui Edit Data Balita.
+          </p>
         </div>
 
         <div className="space-y-4 pt-2">

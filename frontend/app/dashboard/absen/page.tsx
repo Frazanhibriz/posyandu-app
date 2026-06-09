@@ -8,25 +8,20 @@ import Card from "@/components/ui/Card";
 import { getBalitaList, getAbsensiList, bulkUpdateAbsensi } from "@/lib/api";
 import { Balita, Absensi } from "@/types";
 
+const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
+
 export default function AbsenBalitaPage() {
   const router = useRouter();
   const [filter, setFilter] = useState("Semua");
   const [searchTerm, setSearchTerm] = useState("");
   const [balitaList, setBalitaList] = useState<Balita[]>([]);
   const [absenData, setAbsenData] = useState<Absensi[]>([]);
-
-  const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
-  
+  const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
-  const startYear = 2015;
-  const years = [];
-  for (let y = currentYear; y >= startYear; y--) {
-    years.push(y);
-  }
+  const monthOptions = months.slice(0, currentMonth);
 
-  const currentMonthName = months[new Date().getMonth()];
+  const currentMonthName = months[currentMonth - 1];
   const [selectedMonth, setSelectedMonth] = useState(currentMonthName);
-  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
 
   useEffect(() => {
     getBalitaList().then(setBalitaList).catch(console.error);
@@ -34,13 +29,12 @@ export default function AbsenBalitaPage() {
 
   useEffect(() => {
     const bulanIndex = months.indexOf(selectedMonth) + 1;
-    getAbsensiList(bulanIndex, parseInt(selectedYear)).then(setAbsenData).catch(console.error);
-  }, [selectedMonth, selectedYear]);
+    getAbsensiList(bulanIndex, currentYear).then(setAbsenData).catch(console.error);
+  }, [selectedMonth, currentYear]);
 
   const handleStatusChange = async (id: string, newStatus: "hadir" | "tidak") => {
     const isHadir = newStatus === "hadir";
     const bulanIndex = months.indexOf(selectedMonth) + 1;
-    const tahunInt = parseInt(selectedYear);
 
     // Optimistic update
     setAbsenData(prev => {
@@ -48,15 +42,15 @@ export default function AbsenBalitaPage() {
       if (existing) {
         return prev.map(a => a.balitaId === id ? { ...a, isHadir } : a);
       } else {
-        return [...prev, { balitaId: id, isHadir, bulan: bulanIndex, tahun: tahunInt }];
+        return [...prev, { balitaId: id, isHadir, bulan: bulanIndex, tahun: currentYear }];
       }
     });
 
     try {
-      await bulkUpdateAbsensi([{ balitaId: id, isHadir, bulan: bulanIndex, tahun: tahunInt }]);
-    } catch (err) {
+      await bulkUpdateAbsensi([{ balitaId: id, isHadir, bulan: bulanIndex, tahun: currentYear }]);
+    } catch {
       // Revert if API call fails
-      const list = await getAbsensiList(bulanIndex, tahunInt);
+      const list = await getAbsensiList(bulanIndex, currentYear);
       setAbsenData(list);
     }
   };
@@ -83,32 +77,17 @@ export default function AbsenBalitaPage() {
           <h1 className="text-lg font-bold text-black absolute left-1/2 -translate-x-1/2 w-full text-center pointer-events-none">Absen Balita</h1>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div className="space-y-1">
-            <label className="text-[11px] font-bold text-gray-500 ml-1">Bulan</label>
+            <label className="text-[11px] font-bold text-gray-500 ml-1">Bulan Absen {currentYear}</label>
             <div className="relative">
               <select 
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 className="w-full appearance-none bg-white border border-gray-200 rounded-xl p-3.5 text-sm font-bold text-black focus:outline-none focus:ring-1 focus:ring-teal-500 shadow-sm cursor-pointer"
               >
-                {months.map((m) => (
+                {monthOptions.map((m) => (
                   <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-              <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-[11px] font-bold text-gray-500 ml-1">Tahun</label>
-            <div className="relative">
-              <select 
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className="w-full appearance-none bg-white border border-gray-200 rounded-xl p-3.5 text-sm font-bold text-black focus:outline-none focus:ring-1 focus:ring-teal-500 shadow-sm cursor-pointer"
-              >
-                {years.map((y) => (
-                  <option key={y} value={y.toString()}>{y}</option>
                 ))}
               </select>
               <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
@@ -124,7 +103,7 @@ export default function AbsenBalitaPage() {
               Informasi Pilihan Absen
             </p>
             <p className="text-[11px] text-teal-700 font-semibold leading-relaxed mt-0.5">
-              Pilihan bulan mencakup dari Jan - Des. Pilihan tahun berkisar dari minimal tahun 2015 hingga maksimal tahun ini ({currentYear}).
+              Pilihan bulan hanya tersedia dari Jan sampai {currentMonthName} pada tahun {currentYear}.
             </p>
           </div>
         </div>
