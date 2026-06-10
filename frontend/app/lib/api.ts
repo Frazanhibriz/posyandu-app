@@ -17,7 +17,7 @@ function deleteCookie(name: string) {
 
 export function getAuthToken(): string | null {
   if (typeof document === "undefined") return null;
-  const match = document.cookie.match(new RegExp('(^| )session=([^;]+)'));
+  const match = document.cookie.match(new RegExp("(^| )session=([^;]+)"));
   if (match) return match[2];
   return null;
 }
@@ -27,9 +27,9 @@ async function authFetch(url: string, options: RequestInit = {}) {
   const token = getAuthToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options.headers as Record<string, string> || {}),
+    ...((options.headers as Record<string, string>) || {}),
   };
-  
+
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
@@ -51,7 +51,10 @@ async function authFetch(url: string, options: RequestInit = {}) {
 }
 
 // Authentication
-export async function login(identifier: string, password: string): Promise<{ success: boolean; token?: string; error?: string }> {
+export async function login(
+  identifier: string,
+  password: string,
+): Promise<{ success: boolean; token?: string; error?: string }> {
   try {
     const res = await fetch(`${API_URL}/auth/login`, {
       method: "POST",
@@ -65,7 +68,10 @@ export async function login(identifier: string, password: string): Promise<{ suc
     setCookie("session", data.access_token, 7);
     return { success: true, token: data.access_token };
   } catch (err: any) {
-    return { success: false, error: err.message || "Terjadi kesalahan jaringan" };
+    return {
+      success: false,
+      error: err.message || "Terjadi kesalahan jaringan",
+    };
   }
 }
 
@@ -108,7 +114,10 @@ export async function createBalita(balita: any): Promise<Balita> {
   return res.json();
 }
 
-export async function updateBalita(id: string, updatedFields: Partial<Balita>): Promise<void> {
+export async function updateBalita(
+  id: string,
+  updatedFields: Partial<Balita>,
+): Promise<void> {
   const res = await authFetch(`/balita/${id}`, {
     method: "PATCH",
     body: JSON.stringify(updatedFields),
@@ -116,6 +125,29 @@ export async function updateBalita(id: string, updatedFields: Partial<Balita>): 
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.message || "Gagal update balita");
+  }
+}
+
+type UpdatePengukuranBalitaPayload = {
+  bulan: number;
+  tahun: number;
+  beratBadan: number;
+  tinggiBadan: number;
+  lingkarKepala: number | null;
+  lila?: number;
+};
+
+export async function updatePengukuranBalita(
+  pengukuranId: string,
+  updatedFields: UpdatePengukuranBalitaPayload,
+): Promise<void> {
+  const res = await authFetch(`/pengukuran/${pengukuranId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updatedFields),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || "Gagal update pengukuran balita");
   }
 }
 
@@ -131,7 +163,10 @@ export async function deleteBalita(id: string, alasan: string): Promise<void> {
 }
 
 // Pengukuran
-export async function addPengukuran(id: string, pengukuran: Partial<Pengukuran>): Promise<void> {
+export async function addPengukuran(
+  id: string,
+  pengukuran: Partial<Pengukuran>,
+): Promise<void> {
   const { lingkarLengan, ...rest } = pengukuran;
   const payload = {
     balitaId: id,
@@ -149,7 +184,10 @@ export async function addPengukuran(id: string, pengukuran: Partial<Pengukuran>)
 }
 
 // Absensi
-export async function getAbsensiList(bulan?: number, tahun?: number): Promise<Absensi[]> {
+export async function getAbsensiList(
+  bulan?: number,
+  tahun?: number,
+): Promise<Absensi[]> {
   let query = "";
   if (bulan && tahun) {
     query = `?bulan=${bulan}&tahun=${tahun}`;
@@ -159,7 +197,14 @@ export async function getAbsensiList(bulan?: number, tahun?: number): Promise<Ab
   return res.json();
 }
 
-export async function bulkUpdateAbsensi(absensiUpdates: { balitaId: string; isHadir: boolean; bulan: number; tahun: number }[]): Promise<void> {
+export async function bulkUpdateAbsensi(
+  absensiUpdates: {
+    balitaId: string;
+    isHadir: boolean;
+    bulan: number;
+    tahun: number;
+  }[],
+): Promise<void> {
   if (absensiUpdates.length === 0) return;
   const first = absensiUpdates[0];
   const payload = {
@@ -180,11 +225,12 @@ export async function bulkUpdateAbsensi(absensiUpdates: { balitaId: string; isHa
   }
 }
 
-export async function getEvaluasi(balitaId: string): Promise<{ analisis: string }> {
+export async function getEvaluasi(
+  balitaId: string,
+): Promise<{ analisis: string }> {
   const res = await authFetch(`/pengukuran/evaluasi/${balitaId}`);
   if (!res.ok) {
     throw new Error("Gagal mengambil evaluasi balita");
   }
   return res.json();
 }
-

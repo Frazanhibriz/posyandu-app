@@ -242,19 +242,16 @@ export default function DetailBalitaPage() {
       icon: PencilLine,
       label: "Ukur",
       path: `/dashboard/balita/${id}/ukur`,
-      disabled: isMeasuredThisMonth,
     },
     {
       icon: User,
       label: "Edit Data",
       path: `/dashboard/balita/${id}/edit`,
-      disabled: false,
     },
     {
       icon: PackageCheck,
       label: "Absen",
       path: `/dashboard/absen`,
-      disabled: false,
     },
   ];
 
@@ -333,27 +330,11 @@ export default function DetailBalitaPage() {
                 <button
                   key={idx}
                   type="button"
-                  disabled={action.disabled}
-                  title={
-                    action.disabled
-                      ? "Balita sudah diukur bulan ini"
-                      : action.label
-                  }
-                  onClick={() => {
-                    if (action.disabled) return;
-                    router.push(action.path);
-                  }}
-                  className={`group flex flex-col items-center justify-center gap-2 bg-white border border-gray-100 py-3 rounded-2xl transition-all duration-300 ${
-                    action.disabled
-                      ? "opacity-50 cursor-not-allowed"
-                      : "hover:border-teal-200 hover:shadow-md hover:shadow-teal-50 hover:-translate-y-1 active:scale-95 cursor-pointer"
-                  }`}
+                  title={action.label}
+                  onClick={() => router.push(action.path)}
+                  className="group flex flex-col items-center justify-center gap-2 bg-white border border-gray-100 py-3 rounded-2xl transition-all duration-300 hover:border-teal-200 hover:shadow-md hover:shadow-teal-50 hover:-translate-y-1 active:scale-95 cursor-pointer"
                 >
-                  <div
-                    className={`text-[#0d9488] transition-transform duration-300 ${
-                      action.disabled ? "" : "group-hover:scale-110"
-                    }`}
-                  >
+                  <div className="text-[#0d9488] transition-transform duration-300 group-hover:scale-110">
                     <action.icon size={20} strokeWidth={2.5} />
                   </div>
                   <span className="text-[11px] font-bold text-[#0d9488]">

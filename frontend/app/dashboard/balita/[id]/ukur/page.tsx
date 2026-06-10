@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Baby } from "lucide-react";
+import { ArrowLeft, Baby, ChevronDown } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Card from "@/components/ui/Card";
@@ -75,7 +75,15 @@ export default function UkurBalitaPage() {
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth() + 1;
   const currentYear = currentDate.getFullYear();
-  const currentMonthName = monthNames[currentMonth - 1];
+  const monthOptions = monthNames.slice(0, currentMonth);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [isMeasuredDialogOpen, setIsMeasuredDialogOpen] = useState(false);
+
+  const selectedMeasurement = balita?.pengukuran?.find(
+    (p) => p.bulan === selectedMonth && p.tahun === currentYear
+  );
+  const selectedMonthName = monthNames[selectedMonth - 1];
+  const isMeasurementLocked = Boolean(selectedMeasurement);
 
   useEffect(() => {
     getBalitaById(id).then((found) => {
@@ -93,6 +101,12 @@ export default function UkurBalitaPage() {
     }
   }, [ageInMonths]);
 
+  useEffect(() => {
+    if (selectedMeasurement) {
+      setIsMeasuredDialogOpen(true);
+    }
+  }, [selectedMeasurement, selectedMonth]);
+
   if (!balita) {
     return (
       <div className="min-h-screen bg-gray-50 text-black font-sans flex items-center justify-center">
@@ -106,6 +120,11 @@ export default function UkurBalitaPage() {
 
   const handleSave = async () => {
     const isOver6Months = ageInMonths !== null && ageInMonths > 6;
+
+    if (isMeasurementLocked) {
+      setIsMeasuredDialogOpen(true);
+      return;
+    }
     
     if (!tinggi || !berat || !lingkarKepala || (isOver6Months && !lingkarLengan)) {
       warning(isOver6Months ? "Harap isi semua data pengukuran!" : "Harap isi data panjang, berat, dan lingkar kepala!");
@@ -113,7 +132,7 @@ export default function UkurBalitaPage() {
     }
 
     const newMeasurement: Omit<Pengukuran, 'id'> = {
-      bulan: currentMonth,
+      bulan: selectedMonth,
       tahun: currentYear,
       beratBadan: parseFloat(berat),
       tinggiBadan: parseFloat(tinggi),
@@ -153,41 +172,110 @@ export default function UkurBalitaPage() {
           </div>
         </Card>
 
-        <div className="rounded-xl border border-teal-100 bg-[#f0fbf9] p-4 shadow-sm">
+        <div className="rounded-xl border border-teal-100 bg-[#f0fbf9] p-4 shadow-sm space-y-3">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[#0d9488]">
             Periode Pengukuran
           </p>
-          <p className="mt-1 text-sm font-black text-gray-900">
-            {currentMonthName} {currentYear}
+          <div className="relative">
+            <select
+              value={selectedMonth}
+              onChange={(e) => {
+                const month = Number(e.target.value);
+                setSelectedMonth(month);
+                const alreadyMeasured = balita.pengukuran?.some(
+                  (p) => p.bulan === month && p.tahun === currentYear
+                );
+                if (alreadyMeasured) {
+                  setIsMeasuredDialogOpen(true);
+                }
+              }}
+              className="w-full appearance-none bg-white border border-teal-100 rounded-xl p-3.5 pr-10 text-sm text-black font-bold focus:outline-none focus:ring-1 focus:ring-teal-500 shadow-sm cursor-pointer"
+            >
+              {monthOptions.map((month, index) => {
+                const monthNumber = index + 1;
+                const isMeasured = balita.pengukuran?.some(
+                  (p) => p.bulan === monthNumber && p.tahun === currentYear
+                );
+
+                return (
+                  <option key={month} value={monthNumber}>
+                    {month} {currentYear} - {isMeasured ? "Sudah diukur" : "Belum diukur"}
+                  </option>
+                );
+              })}
+            </select>
+            <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+          </div>
+          <p className="text-xs font-medium leading-relaxed text-gray-600">
+            Pilih bulan pengukuran pada tahun berjalan. Jika bulan sudah diukur, ubah datanya lewat Edit Data Balita.
           </p>
-          <p className="mt-2 text-xs font-medium leading-relaxed text-gray-600">
-            Input pengukuran ini hanya untuk bulan saat ini. Pengukuran bulan lain dilakukan melalui Edit Data Balita.
-          </p>
+          {selectedMeasurement && (
+            <p className="text-xs font-bold text-orange-600">
+              {selectedMonthName} {currentYear} sudah memiliki data pengukuran. Semua field dikunci, gunakan Edit Data Balita untuk mengubahnya.
+            </p>
+          )}
         </div>
 
         <div className="space-y-4 pt-2">
           <p className="text-xs font-bold text-gray-500 ml-1">Data Pengukuran</p>
-          <InputWithSuffix label="Panjang / Tinggi" suffix="cm" value={tinggi} onChange={setTinggi} />
-          <InputWithSuffix label="Berat" suffix="kg" value={berat} onChange={setBerat} />
-          <InputWithSuffix label="Lingkar Kepala" suffix="cm" value={lingkarKepala} onChange={setLingkarKepala} />
+          <InputWithSuffix label="Panjang / Tinggi" suffix="cm" value={tinggi} onChange={setTinggi} disabled={isMeasurementLocked} />
+          <InputWithSuffix label="Berat" suffix="kg" value={berat} onChange={setBerat} disabled={isMeasurementLocked} />
+          <InputWithSuffix label="Lingkar Kepala" suffix="cm" value={lingkarKepala} onChange={setLingkarKepala} disabled={isMeasurementLocked} />
           <InputWithSuffix 
             label="Lingkar Lengan Atas" 
             suffix="cm" 
             value={lingkarLengan} 
             onChange={setLingkarLengan} 
             sublabel="Untuk balita usia > 6 bulan" 
-            disabled={isLlaDisabled}
+            disabled={isLlaDisabled || isMeasurementLocked}
             placeholder={isLlaDisabled ? "Tidak wajib (≤ 6 bulan)" : "0.0"}
           />
         </div>
 
         <button 
           onClick={handleSave}
-          className="w-full bg-[#1fb999] hover:bg-teal-600 text-white font-bold py-4 rounded-xl transition-colors active:scale-95 shadow-md shadow-teal-100 mt-6 cursor-pointer"
+          disabled={Boolean(selectedMeasurement)}
+          className={`w-full font-bold py-4 rounded-xl transition-colors active:scale-95 shadow-md mt-6 ${
+            selectedMeasurement
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
+              : "bg-[#1fb999] hover:bg-teal-600 text-white shadow-teal-100 cursor-pointer"
+          }`}
         >
           Simpan Pengukuran
         </button>
       </main>
+
+      {isMeasuredDialogOpen && selectedMeasurement && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl border border-orange-50">
+            <div className="mx-auto w-14 h-14 bg-orange-50 rounded-full flex items-center justify-center mb-4 text-orange-600 font-black">
+              !
+            </div>
+            <h3 className="text-lg font-black text-black mb-2">
+              Pengukuran Sudah Ada
+            </h3>
+            <p className="text-xs text-gray-600 leading-relaxed mb-6">
+              Balita ini sudah diukur pada {selectedMonthName} {currentYear}. Jika ingin mengubah data pengukuran, gunakan fitur Edit Data Balita.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setIsMeasuredDialogOpen(false)}
+                className="flex-1 bg-white hover:bg-gray-50 active:scale-[0.99] border border-gray-300 text-gray-700 font-bold py-3 px-4 rounded-2xl shadow-sm transition-all text-xs"
+              >
+                Tutup
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push(`/dashboard/balita/${id}/edit`)}
+                className="flex-1 bg-[#1fb999] hover:bg-teal-600 active:scale-[0.99] text-white font-bold py-3 px-4 rounded-2xl shadow-sm transition-all text-xs"
+              >
+                Edit Data
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { ArrowLeft, Baby, ChevronDown } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Card from "@/components/ui/Card";
-import { getBalitaById, updateBalita } from "@/lib/api";
+import { getBalitaById, updateBalita, updatePengukuranBalita } from "@/lib/api";
 import { Balita } from "@/types";
 import { useToast } from "@/components/ui/Toast";
 
@@ -24,12 +24,39 @@ const MONTH_NAMES = [
   "Desember",
 ];
 
+function toOptionalNumber(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function calculateAgeInMonths(birthDateString: string): number | null {
+  if (!birthDateString) return null;
+
+  const birthDate = new Date(birthDateString);
+  if (Number.isNaN(birthDate.getTime())) return null;
+
+  const today = new Date();
+  let months =
+    (today.getFullYear() - birthDate.getFullYear()) * 12 +
+    today.getMonth() -
+    birthDate.getMonth();
+
+  if (today.getDate() < birthDate.getDate()) {
+    months -= 1;
+  }
+
+  return Math.max(months, 0);
+}
+
 export default function EditBalitaPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
   const [balita, setBalita] = useState<Balita | null>(null);
-  const { success } = useToast();
+  const { success, warning, error } = useToast();
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
   const monthOptions = MONTH_NAMES.slice(0, currentMonth);
@@ -104,6 +131,127 @@ export default function EditBalitaPage() {
     (p) => p.bulan === selectedMeasurementMonth && p.tahun === currentYear,
   );
   const selectedMonthName = MONTH_NAMES[selectedMeasurementMonth - 1];
+  const ageInMonths = calculateAgeInMonths(balita.tglLahir);
+  const isLilaDisabled = ageInMonths !== null && ageInMonths <= 6;
+  const isMeasurementMissing = !selectedMeasurement;
+
+  const handleSave = async () => {
+    const jenisKelamin = gender.toLowerCase().includes("perempuan")
+      ? "PEREMPUAN"
+      : "LAKI_LAKI";
+
+    const balitaPayload: Partial<Balita> = {};
+
+    if (name !== (balita.nama || "")) balitaPayload.nama = name;
+    if (mom !== (balita.namaWali || "")) balitaPayload.namaWali = mom;
+    if (address !== (balita.alamat || "")) balitaPayload.alamat = address;
+    if (rt !== (balita.rt || "")) balitaPayload.rt = rt;
+    if (rw !== (balita.rw || "")) balitaPayload.rw = rw;
+    if (jenisKelamin !== balita.jenisKelamin) {
+      balitaPayload.jenisKelamin = jenisKelamin;
+    }
+    if (nikBayi !== (balita.nik || "")) balitaPayload.nik = nikBayi;
+    if (nikWali !== (balita.nikWali || "")) balitaPayload.nikWali = nikWali;
+
+    const tinggiBadan = toOptionalNumber(panjangPengukuran);
+    const beratBadan = toOptionalNumber(beratPengukuran);
+    const lingkarKepala = toOptionalNumber(lingkarKepalaPengukuran);
+    const shouldSendLila =
+      !isLilaDisabled && lingkarLenganPengukuran.trim() !== "";
+    const lila = shouldSendLila
+      ? toOptionalNumber(lingkarLenganPengukuran)
+      : null;
+
+    const hasMeasurementInput =
+      [panjangPengukuran, beratPengukuran, lingkarKepalaPengukuran].some(
+        (value) => value.trim() !== "",
+      ) || shouldSendLila;
+
+    const hasMeasurementChanges = selectedMeasurement
+      ? tinggiBadan !== selectedMeasurement.tinggiBadan ||
+        beratBadan !== selectedMeasurement.beratBadan ||
+        lingkarKepala !== selectedMeasurement.lingkarKepala ||
+        (shouldSendLila && lila !== selectedMeasurement.lingkarLengan)
+      : hasMeasurementInput;
+
+    const hasBalitaChanges = Object.keys(balitaPayload).length > 0;
+
+    if (!hasBalitaChanges && !hasMeasurementChanges) {
+      warning("Tidak ada perubahan data untuk disimpan.");
+      return;
+    }
+
+    let pengukuranPayload: {
+      bulan: number;
+      tahun: number;
+      beratBadan: number;
+      tinggiBadan: number;
+      lingkarKepala: number | null;
+      lila?: number;
+    } | null = null;
+    let pengukuranId: string | null = null;
+
+    if (hasMeasurementChanges) {
+      if (!selectedMeasurement) {
+        warning(
+          `Belum ada data pengukuran untuk ${selectedMonthName} ${currentYear}.`,
+        );
+        return;
+      }
+
+      if (!selectedMeasurement.id) {
+        warning("ID pengukuran tidak ditemukan untuk periode ini.");
+        return;
+      }
+
+      if (tinggiBadan === null || beratBadan === null) {
+        warning("Panjang dan berat wajib diisi untuk update pengukuran.");
+        return;
+      }
+
+      if (shouldSendLila && lila === null) {
+        warning("Lingkar lengan harus berupa angka yang valid.");
+        return;
+      }
+
+      pengukuranPayload = {
+        bulan: selectedMeasurementMonth,
+        tahun: currentYear,
+        beratBadan,
+        tinggiBadan,
+        lingkarKepala,
+      };
+
+      if (shouldSendLila && lila !== null) {
+        pengukuranPayload.lila = lila;
+      }
+      pengukuranId = selectedMeasurement.id;
+    }
+
+    try {
+      if (hasBalitaChanges) {
+        await updateBalita(id, balitaPayload);
+      }
+
+      if (pengukuranPayload && pengukuranId) {
+        await updatePengukuranBalita(pengukuranId, pengukuranPayload);
+      }
+
+      if (hasBalitaChanges && hasMeasurementChanges) {
+        success("Data balita dan pengukuran berhasil diedit!");
+      } else if (hasMeasurementChanges) {
+        success("Data pengukuran berhasil diedit!");
+      } else {
+        success("Data balita berhasil diedit!");
+      }
+
+      router.back();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Gagal menyimpan perubahan.";
+      error(message);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 text-black font-sans pb-10">
@@ -304,7 +452,7 @@ export default function EditBalitaPage() {
               >
                 {selectedMeasurement
                   ? `Data pengukuran ${selectedMonthName} ${currentYear} ditemukan.`
-                  : `Belum ada data pengukuran untuk ${selectedMonthName} ${currentYear}.`}
+                  : `Belum ada data pengukuran untuk ${selectedMonthName} ${currentYear}. Input pengukuran baru melalui halaman Input Pengukuran.`}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -317,7 +465,8 @@ export default function EditBalitaPage() {
                     value={panjangPengukuran}
                     onChange={(e) => setPanjangPengukuran(e.target.value)}
                     placeholder="0.0"
-                    className="w-full border border-gray-200 rounded-xl p-3.5 text-sm text-black font-bold focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white shadow-sm"
+                    disabled={isMeasurementMissing}
+                    className="w-full border border-gray-200 rounded-xl p-3.5 text-sm text-black font-bold focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white shadow-sm disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -330,7 +479,8 @@ export default function EditBalitaPage() {
                     value={beratPengukuran}
                     onChange={(e) => setBeratPengukuran(e.target.value)}
                     placeholder="0.0"
-                    className="w-full border border-gray-200 rounded-xl p-3.5 text-sm text-black font-bold focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white shadow-sm"
+                    disabled={isMeasurementMissing}
+                    className="w-full border border-gray-200 rounded-xl p-3.5 text-sm text-black font-bold focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white shadow-sm disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -343,7 +493,8 @@ export default function EditBalitaPage() {
                     value={lingkarKepalaPengukuran}
                     onChange={(e) => setLingkarKepalaPengukuran(e.target.value)}
                     placeholder="0.0"
-                    className="w-full border border-gray-200 rounded-xl p-3.5 text-sm text-black font-bold focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white shadow-sm"
+                    disabled={isMeasurementMissing}
+                    className="w-full border border-gray-200 rounded-xl p-3.5 text-sm text-black font-bold focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white shadow-sm disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -353,11 +504,15 @@ export default function EditBalitaPage() {
                   </label>
                   <input
                     type="number"
-                    value={lingkarLenganPengukuran}
+                    value={isLilaDisabled ? "" : lingkarLenganPengukuran}
                     onChange={(e) => setLingkarLenganPengukuran(e.target.value)}
-                    placeholder="0.0"
-                    className="w-full border border-gray-200 rounded-xl p-3.5 text-sm text-black font-bold focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white shadow-sm"
+                    placeholder={isLilaDisabled ? "Tidak wajib" : "0.0"}
+                    disabled={isLilaDisabled || isMeasurementMissing}
+                    className="w-full border border-gray-200 rounded-xl p-3.5 text-sm text-black font-bold focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white shadow-sm disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
                   />
+                  <p className="text-[10px] font-medium text-gray-400">
+                    Hanya untuk balita usia &gt; 6 bulan
+                  </p>
                 </div>
               </div>
             </div>
@@ -365,22 +520,7 @@ export default function EditBalitaPage() {
         </div>
 
         <button
-          onClick={async () => {
-            await updateBalita(id, {
-              nama: name,
-              namaWali: mom,
-              alamat: address,
-              rt: rt,
-              rw: rw,
-              jenisKelamin: gender.toLowerCase().includes("perempuan")
-                ? "PEREMPUAN"
-                : "LAKI_LAKI",
-              nik: nikBayi,
-              nikWali: nikWali,
-            });
-            success("Data balita berhasil diedit!");
-            router.back();
-          }}
+          onClick={handleSave}
           className="w-full bg-[#1fb999] hover:bg-teal-600 text-white font-bold py-4 rounded-xl transition-colors active:scale-95 shadow-md shadow-teal-100 mt-6 cursor-pointer"
         >
           Simpan Perubahan Data Balita
