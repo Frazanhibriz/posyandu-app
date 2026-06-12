@@ -225,6 +225,25 @@ export async function bulkUpdateAbsensi(
   }
 }
 
+// Laporan
+export async function exportLaporanExcel(
+  bulan: number,
+  tahun: number,
+): Promise<Blob> {
+  const query = new URLSearchParams({
+    tahun: tahun.toString(),
+    bulan: bulan.toString(),
+  });
+  const res = await authFetch(`/laporan/export/excel?${query.toString()}`);
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.message || "Gagal export laporan Excel");
+  }
+
+  return res.blob();
+}
+
 export async function getEvaluasi(
   balita: Balita,
 ): Promise<{ analisis: string }> {

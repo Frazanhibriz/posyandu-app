@@ -4,16 +4,92 @@ import { useState, useRef, useEffect } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Card from "@/components/ui/Card";
 import { 
+  Activity,
+  AlertCircle,
+  ArrowRight,
+  BarChart3,
   CalendarDays, 
+  ClipboardCheck,
   Search, 
   Plus, 
   PencilLine, 
   PackageCheck, 
-  Baby
+  Baby,
+  Ruler,
+  Users,
+  type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getBalitaList, getDashboardStats } from "@/lib/api";
 import { Balita, BerandaStats } from "@/types";
+
+const formatPercent = (value: number) => {
+  if (!Number.isFinite(value)) return "0";
+  return Number.isInteger(value) ? value.toString() : value.toFixed(1);
+};
+
+const SummaryCard = ({
+  label,
+  value,
+  helper,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: number | string;
+  helper: string;
+  icon: LucideIcon;
+  tone: string;
+}) => (
+  <Card className="p-4 rounded-xl border-gray-100 bg-white">
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+          {label}
+        </p>
+        <p className="text-2xl font-black text-gray-950 mt-2">{value}</p>
+      </div>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tone}`}>
+        <Icon size={20} strokeWidth={2.5} />
+      </div>
+    </div>
+    <p className="text-[11px] font-semibold text-gray-500 mt-3 leading-relaxed">
+      {helper}
+    </p>
+  </Card>
+);
+
+const ProgressMetric = ({
+  label,
+  value,
+  helper,
+  color,
+}: {
+  label: string;
+  value: number;
+  helper: string;
+  color: string;
+}) => (
+  <div className="space-y-2">
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <p className="text-xs font-bold text-gray-900">{label}</p>
+        <p className="text-[11px] font-semibold text-gray-500 mt-0.5">
+          {helper}
+        </p>
+      </div>
+      <span className="text-sm font-black text-gray-950">
+        {formatPercent(value)}%
+      </span>
+    </div>
+    <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+      <div
+        className={`h-full rounded-full transition-all duration-700 ${color}`}
+        style={{ width: `${Math.min(value, 100)}%` }}
+      />
+    </div>
+  </div>
+);
 
 export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -29,17 +105,31 @@ export default function DashboardPage() {
     getDashboardStats().then(setStats).catch(console.error);
   }, []);
 
-  const filteredSuggestions = balitaList.filter((b) =>
-    b.nama.toLowerCase().includes(searchTerm.toLowerCase())
-  ).slice(0, 4);
+  const filteredSuggestions = balitaList
+    .filter((b) => b.nama.toLowerCase().includes(searchTerm.toLowerCase()))
+    .slice(0, 4);
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
+  const currentPeriod = new Date().toLocaleDateString("id-ID", {
+    month: "long",
+    year: "numeric",
+  });
 
   const belumDiukurList = balitaList.filter((b) => {
     const isMeasured = b.pengukuran?.some((p) => p.bulan === currentMonth && p.tahun === currentYear);
     return !isMeasured;
   });
+  const totalBalita = stats?.totalBalita ?? balitaList.length;
+  const hadirBulanIni = stats?.hadirBulanIni ?? 0;
+  const belumHadir = stats?.belumHadir ?? Math.max(totalBalita - hadirBulanIni, 0);
+  const belumDiukur = stats?.belumDiukur ?? belumDiukurList.length;
+  const sudahDiukur = Math.max(totalBalita - belumDiukur, 0);
+  const attendanceRate =
+    totalBalita > 0 ? parseFloat(((hadirBulanIni / totalBalita) * 100).toFixed(1)) : 0;
+  const measurementRate =
+    totalBalita > 0 ? parseFloat(((sudahDiukur / totalBalita) * 100).toFixed(1)) : 0;
+  const priorityList = belumDiukurList.slice(0, 4);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -52,20 +142,24 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans text-black">
+    <div className="min-h-screen bg-gray-50 font-sans text-black pb-10">
       <Navbar />
 
       <main className="p-4 sm:p-6 md:p-8 space-y-6 max-w-6xl mx-auto mt-2">
         
-        <div className="bg-teal-600 rounded-3xl p-6 sm:p-8 md:p-10 text-white shadow-lg relative">
+        <div className="bg-[#0d9488] rounded-2xl p-5 sm:p-7 md:p-8 text-white shadow-sm relative overflow-visible border border-teal-700/10">
           <div className="flex justify-between items-start mb-6 relative z-10">
-            <div>
+            <div className="[&>p:first-child]:hidden">
               <p className="text-teal-50 text-sm font-medium opacity-90 mb-1">Halo, Kader 👋</p>
-              <h2 className="text-xl sm:text-2xl font-bold">Posyandu Sidorejo Kidul</h2>
+              <p className="text-teal-50 text-xs font-bold uppercase tracking-widest mb-2">Posyandu Sidorejo Kidul</p>
+              <h2 className="text-xl sm:text-2xl font-black">Pemantauan Bulan Ini</h2>
+              <p className="text-sm font-medium text-teal-50 mt-2 max-w-xl">
+                Ringkasan sasaran, absensi, dan pengukuran balita untuk periode berjalan.
+              </p>
             </div>
-            <div className="bg-white/20 px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl flex items-center gap-2 text-xs font-bold tracking-wide">
+            <div className="bg-white/15 px-3 py-2 rounded-xl flex items-center gap-2 text-xs font-bold tracking-wide whitespace-nowrap">
               <CalendarDays size={18} />
-              {new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" })}
+              {currentPeriod}
             </div>
           </div>
  
@@ -119,50 +213,95 @@ export default function DashboardPage() {
           </div>
         </div>
  
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <SummaryCard
+            label="Total Balita"
+            value={totalBalita}
+            helper="Sasaran aktif"
+            icon={Users}
+            tone="bg-blue-50 text-blue-600"
+          />
+          <SummaryCard
+            label="Hadir"
+            value={hadirBulanIni}
+            helper={`${belumHadir} belum hadir`}
+            icon={ClipboardCheck}
+            tone="bg-emerald-50 text-emerald-600"
+          />
+          <SummaryCard
+            label="Diukur"
+            value={sudahDiukur}
+            helper={`${belumDiukur} belum diukur`}
+            icon={Ruler}
+            tone="bg-teal-50 text-[#0d9488]"
+          />
+          <SummaryCard
+            label="Prioritas"
+            value={belumDiukurList.length}
+            helper="Perlu pengukuran"
+            icon={AlertCircle}
+            tone="bg-orange-50 text-orange-600"
+          />
+        </div>
+
         {/* Responsive Desktop Grid Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           {/* Left Column: Stats & Aksi Cepat (spans 2 columns on lg) */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="flex flex-col justify-between p-5 hover:border-blue-200 transition-colors shadow-sm bg-white">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2.5 h-2.5 bg-blue-500 rounded-full"></div>
-                  <p className="text-sm text-gray-800">Total balita</p>
+            <Card className="p-5 rounded-xl shadow-sm border border-gray-100 bg-white">
+              <div className="flex items-center justify-between gap-4 mb-5">
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900">Cakupan Bulanan</h4>
+                  <p className="text-xs font-medium text-gray-500 mt-1">
+                    Absensi dan pengukuran periode {currentPeriod}.
+                  </p>
                 </div>
-                <h3 className="text-3xl font-black text-gray-900">{stats?.totalBalita || 0}</h3>
-              </Card>
-              
-              <Card className="flex flex-col justify-between p-5 hover:border-yellow-200 transition-colors shadow-sm bg-white">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2.5 h-2.5 bg-yellow-400 rounded-full"></div>
-                  <p className="text-sm text-gray-800">Belum Hadir</p>
-                </div>
-                <h3 className="text-3xl font-black text-gray-900">{stats?.belumHadir || 0}</h3>
-              </Card>
+                <BarChart3 size={22} className="text-[#0d9488]" />
+              </div>
+              <div className="space-y-5">
+                <ProgressMetric
+                  label="Kehadiran"
+                  value={attendanceRate}
+                  helper={`${hadirBulanIni} dari ${totalBalita} balita`}
+                  color="bg-emerald-500"
+                />
+                <ProgressMetric
+                  label="Pengukuran"
+                  value={measurementRate}
+                  helper={`${sudahDiukur} dari ${totalBalita} balita`}
+                  color="bg-[#1fb999]"
+                />
+              </div>
+            </Card>
  
-              <Card className="flex flex-col justify-between p-5 hover:border-teal-200 transition-colors shadow-sm bg-white">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2.5 h-2.5 bg-[#1fb999] rounded-full"></div>
-                  <p className="text-sm text-gray-800">Hadir Bulan Ini</p>
+            <Card className="p-5 rounded-xl shadow-sm border border-gray-100 bg-white">
+              <div className="flex items-center justify-between gap-4 mb-5">
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900">Aksi Cepat</h4>
+                  <p className="text-xs font-medium text-gray-500 mt-1">
+                    Alur kerja utama kader bulan ini.
+                  </p>
                 </div>
-                <h3 className="text-3xl font-black text-gray-900">{stats?.hadirBulanIni || 0}</h3>
-              </Card>
-            </div>
- 
-            <Card className="p-6 shadow-sm border border-gray-200 bg-white">
-              <h4 className="text-lg font-bold text-black mb-5">Aksi Cepat</h4>
-              <div className="grid grid-cols-3 gap-4">
+                <Activity size={22} className="text-[#0d9488]" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
-                  { icon: Plus, label: "Tambah Balita", onClick: () => router.push("/dashboard/balita/tambah") },
-                  { icon: PencilLine, label: "Input Pengukuran", onClick: () => router.push("/dashboard/cari?mode=ukur") },
-                  { icon: PackageCheck, label: "Absen Bulanan", onClick: () => router.push("/dashboard/absen") }
+                  { icon: Plus, label: "Tambah Balita", helper: "Registrasi baru", onClick: () => router.push("/dashboard/balita/tambah") },
+                  { icon: PencilLine, label: "Input Pengukuran", helper: "Balita belum diukur", onClick: () => router.push("/dashboard/cari?mode=ukur") },
+                  { icon: PackageCheck, label: "Absen Bulanan", helper: "Kehadiran posyandu", onClick: () => router.push("/dashboard/absen") }
                 ].map((action, idx) => (
-                  <button key={idx} onClick={action.onClick} className="group flex flex-col items-center justify-center gap-3 bg-[#f0fbf9] py-5 px-2 rounded-2xl transition-all duration-300 hover:bg-white hover:shadow-lg hover:shadow-teal-100 hover:-translate-y-1 hover:scale-[1.02] active:scale-95 border border-transparent hover:border-teal-100 cursor-pointer">
-                    <div className="text-[#0d9488] transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
-                      <action.icon size={28} strokeWidth={2} />
+                  <button key={idx} onClick={action.onClick} className="group text-left bg-gray-50 hover:bg-white p-4 rounded-xl transition-all duration-300 hover:shadow-md hover:shadow-teal-50 active:scale-[0.99] border border-gray-100 hover:border-teal-200 cursor-pointer">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="w-11 h-11 rounded-xl bg-white flex items-center justify-center text-[#0d9488] shadow-sm transition-transform duration-300 group-hover:scale-105">
+                        <action.icon size={22} strokeWidth={2.4} />
+                      </div>
+                      <ArrowRight size={17} className="text-gray-300 group-hover:text-[#0d9488] transition-colors" />
                     </div>
-                    <p className="text-xs sm:text-sm font-semibold text-center text-[#0d9488] transition-colors duration-300 group-hover:text-teal-900">
+                    <p className="text-sm font-black text-gray-900 mt-4">
                       {action.label}
+                    </p>
+                    <p className="text-[11px] font-semibold text-gray-500 mt-1">
+                      {action.helper}
                     </p>
                   </button>
                 ))}
@@ -173,36 +312,61 @@ export default function DashboardPage() {
           {/* Right Column: Belum diukur list (spans 1 column on lg) */}
           <div className="space-y-4">
             <div className="flex justify-between items-center px-1">
-              <h4 className="text-base font-bold text-black">Belum diukur bulan ini</h4>
-              <span className="text-sm font-medium text-gray-500">{belumDiukurList.length} balita</span>
+              <div>
+                <h4 className="text-base font-bold text-black">Prioritas pengukuran</h4>
+                <p className="text-xs font-medium text-gray-500 mt-0.5">{currentPeriod}</p>
+              </div>
+              <span className="text-sm font-bold text-orange-600">{belumDiukurList.length}</span>
             </div>
  
             <div className="space-y-3">
-              {belumDiukurList.length > 0 ? (
-                belumDiukurList.map((item) => (
-                  <Card key={item.id} onClick={() => router.push(`/dashboard/balita/${item.id}`)} className="p-4 flex items-center justify-between group cursor-pointer hover:border-gray-300 transition-all shadow-sm bg-white">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
+              {priorityList.length > 0 ? (
+                priorityList.map((item) => (
+                  <Card key={item.id} onClick={() => router.push(`/dashboard/balita/${item.id}/ukur`)} className="p-4 rounded-xl flex items-center justify-between group cursor-pointer hover:border-teal-200 hover:shadow-md hover:shadow-teal-50 transition-all shadow-sm bg-white">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
                         item.jenisKelamin === "PEREMPUAN" ? "bg-[#fce5f1] text-pink-500" : "bg-[#e5f5fd] text-sky-500"
                       }`}>
-                        <Baby size={24} />
+                        <Baby size={22} />
                       </div>
-                      <div>
-                        <h5 className="text-sm font-bold text-black">{item.nama}</h5>
-                        <p className="text-xs text-gray-700 mt-0.5">
+                      <div className="min-w-0">
+                        <h5 className="text-sm font-bold text-black truncate">{item.nama}</h5>
+                        <p className="text-[11px] text-gray-600 mt-0.5 truncate">
+                          RT {item.rt}/RW {item.rw}
+                        </p>
+                        <p className="hidden">
                           {item.namaWali} • {item.alamat} RT {item.rt}/RW {item.rw}
                         </p>
                       </div>
                     </div>
-                    <div className="bg-[#fff5ea] text-orange-600 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap">
-                      Belum diukur
-                    </div>
+                    <ArrowRight size={17} className="text-gray-300 group-hover:text-[#0d9488] transition-colors shrink-0" />
                   </Card>
                 ))
               ) : (
+                <>
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-5 text-center">
+                    <div className="w-11 h-11 rounded-xl bg-white text-emerald-600 flex items-center justify-center mx-auto mb-3">
+                      <ClipboardCheck size={22} />
+                    </div>
+                    <p className="text-sm font-bold text-emerald-700">
+                      Semua balita sudah diukur bulan ini.
+                    </p>
+                  </div>
+                  <div className="hidden">
                 <p className="text-center py-6 text-xs text-gray-400 font-medium">Semua balita sudah diukur bulan ini! 🎉</p>
+                  </div>
+                </>
               )}
             </div>
+            {belumDiukurList.length > priorityList.length && (
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard/cari?mode=ukur")}
+                className="w-full rounded-xl bg-white border border-gray-100 px-4 py-3 text-xs font-bold text-[#0d9488] hover:border-teal-200 transition-colors cursor-pointer"
+              >
+                Lihat semua balita belum diukur
+              </button>
+            )}
           </div>
         </div>
       </main>
