@@ -166,6 +166,9 @@ const GrafikPertumbuhan = ({
   );
 };
 
+const AI_FALLBACK_TEXT =
+  "Insight AI sedang tidak tersedia. Untuk sementara, gunakan grafik dan riwayat pengukuran untuk melihat perkembangan balita.";
+
 export default function DetailBalitaPage() {
   const params = useParams();
   const router = useRouter();
@@ -192,7 +195,7 @@ export default function DetailBalitaPage() {
     (currentYear - i).toString(),
   );
 
-  // State untuk persiapan integrasi AI dari backend
+  // State untuk persiapan integrasi AI
   const [isAiLoading, setIsAiLoading] = useState(true);
   const [aiAnalysisText, setAiAnalysisText] = useState("");
 
@@ -205,19 +208,17 @@ export default function DetailBalitaPage() {
   useEffect(() => {
     if (!balita) return;
     setIsAiLoading(true);
-    getEvaluasi(id)
+    getEvaluasi(balita)
       .then((data) => {
         setAiAnalysisText(data.analisis);
       })
-      .catch((err) => {
-        setAiAnalysisText(
-          "Data pengukuran belum cukup untuk melakukan analisis tren (minimal 3 bulan berturut-turut).",
-        );
+      .catch(() => {
+        setAiAnalysisText(AI_FALLBACK_TEXT);
       })
       .finally(() => {
         setIsAiLoading(false);
       });
-  }, [id, balita]);
+  }, [balita]);
 
   if (!balita) {
     return (
@@ -349,7 +350,7 @@ export default function DetailBalitaPage() {
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles size={18} className="text-[#0d9488]" />
                 <h4 className="font-bold text-sm text-[#0d9488]">
-                  Analisis AI 3 Bulan Terakhir
+                  Insight AI Pertumbuhan
                 </h4>
               </div>
 

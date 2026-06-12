@@ -226,11 +226,23 @@ export async function bulkUpdateAbsensi(
 }
 
 export async function getEvaluasi(
-  balitaId: string,
+  balita: Balita,
 ): Promise<{ analisis: string }> {
-  const res = await authFetch(`/pengukuran/evaluasi/${balitaId}`);
+  const res = await fetch("/api/ai-insight", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      balita: {
+        jenisKelamin: balita.jenisKelamin,
+        tglLahir: balita.tglLahir,
+        pengukuran: balita.pengukuran ?? [],
+      },
+    }),
+  });
+
   if (!res.ok) {
     throw new Error("Gagal mengambil evaluasi balita");
   }
+
   return res.json();
 }

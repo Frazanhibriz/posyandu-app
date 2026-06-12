@@ -142,7 +142,7 @@ export default function UkurBalitaPage() {
 
     await addPengukuran(id, newMeasurement);
     success('Pengukuran berhasil disimpan!');
-    router.back();
+    router.push(`/dashboard/balita/${id}`);
   };
 
   const isLlaDisabled = ageInMonths !== null && ageInMonths <= 6;
