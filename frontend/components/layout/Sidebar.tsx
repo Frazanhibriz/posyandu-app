@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { 
+  AlertTriangle,
   Home, 
   Baby, 
   ClipboardCheck, 
@@ -11,7 +13,8 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { logout } from "@/lib/api";
+import { getCurrentUser, logout } from "@/lib/api";
+import { KaderProfile } from "@/types";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -21,6 +24,9 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [profile, setProfile] = useState<KaderProfile | null>(null);
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const menuItems = [
     {
@@ -48,6 +54,24 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       description: "Statistik Posyandu"
     }
   ];
+
+  useEffect(() => {
+    getCurrentUser()
+      .then(setProfile)
+      .catch(() => setProfile(null));
+  }, []);
+
+  const displayName = profile?.nama || profile?.username || "Kader";
+  const displayEmail = profile?.email || profile?.nik || "Profil kader";
+  const avatarInitial = displayName.trim().charAt(0).toUpperCase() || "K";
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await logout();
+    setIsLogoutDialogOpen(false);
+    router.push("/login");
+    router.refresh();
+  };
 
   return (
     <>
@@ -127,20 +151,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="p-6 border-t space-y-6">
           <div className="bg-gray-50 p-4 rounded-2xl flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#b8f5e6] flex items-center justify-center text-teal-800 font-bold text-sm">
-              K
+              {avatarInitial}
             </div>
             <div className="overflow-hidden">
-              <h4 className="text-sm font-bold text-gray-800 truncate">Bu Kader</h4>
-              <p className="text-[10px] text-gray-800 truncate">kader@posyandu.id</p>
+              <h4 className="text-sm font-bold text-gray-800 truncate">{displayName}</h4>
+              <p className="text-[10px] text-gray-800 truncate">{displayEmail}</p>
             </div>
           </div>
 
           <button 
-            onClick={async () => {
-              await logout();
-              router.push('/login');
-              router.refresh();
-            }}
+            onClick={() => setIsLogoutDialogOpen(true)}
             className="flex items-center justify-center gap-3 w-full text-rose-600 font-bold text-sm hover:bg-rose-50 p-3 rounded-xl transition-colors group cursor-pointer active:scale-95"
           >
             <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
@@ -148,6 +168,40 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </button>
         </div>
       </div>
+
+      {isLogoutDialogOpen && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl border border-rose-50">
+            <div className="mx-auto w-14 h-14 bg-rose-50 rounded-full flex items-center justify-center mb-4 text-rose-600">
+              <AlertTriangle size={26} />
+            </div>
+            <h3 className="text-lg font-black text-black mb-2">
+              Keluar dari akun?
+            </h3>
+            <p className="text-xs text-gray-600 leading-relaxed mb-6">
+              Sesi kader akan diakhiri dan Anda perlu login kembali untuk mengakses dashboard.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setIsLogoutDialogOpen(false)}
+                disabled={isLoggingOut}
+                className="flex-1 bg-white hover:bg-gray-50 active:scale-[0.99] border border-gray-300 text-gray-700 font-bold py-3 px-4 rounded-2xl shadow-sm transition-all text-xs disabled:opacity-60"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="flex-1 bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white font-bold py-3 px-4 rounded-2xl shadow-sm transition-all text-xs disabled:opacity-60"
+              >
+                {isLoggingOut ? "Keluar..." : "Ya, Keluar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
