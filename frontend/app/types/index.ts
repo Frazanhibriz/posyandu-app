@@ -47,3 +47,11 @@ export interface BerandaStats {
   belumHadir: number;
   belumDiukur: number;
 }
+
+export interface KaderProfile {
+  id?: string;
+  nik?: string;
+  username?: string;
+  email?: string;
+  nama?: string;
+}

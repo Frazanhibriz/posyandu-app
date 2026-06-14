@@ -1,4 +1,4 @@
-import { Balita, Pengukuran, Absensi, BerandaStats } from "@/types";
+import { Balita, Pengukuran, Absensi, BerandaStats, KaderProfile } from "@/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -77,6 +77,18 @@ export async function login(
 
 export async function logout(): Promise<void> {
   deleteCookie("session");
+}
+
+export async function getCurrentUser(): Promise<KaderProfile> {
+  const res = await authFetch("/auth/me");
+  if (!res.ok) throw new Error("Gagal mengambil profil kader");
+
+  const data = (await res.json()) as KaderProfile | { user?: KaderProfile };
+  if ("user" in data && data.user) {
+    return data.user;
+  }
+
+  return data as KaderProfile;
 }
 
 // Dashboard
