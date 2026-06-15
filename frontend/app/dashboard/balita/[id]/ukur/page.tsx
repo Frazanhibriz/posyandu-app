@@ -5,6 +5,7 @@ import { ArrowLeft, Baby, ChevronDown } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Card from "@/components/ui/Card";
+import { InfoPanel } from "@/components/ui/PageParts";
 import { getBalitaById, addPengukuran } from "@/lib/api";
 import { Balita, Pengukuran } from "@/types";
 
@@ -158,6 +159,10 @@ export default function UkurBalitaPage() {
           </button>
           <h1 className="text-lg font-bold text-black absolute left-1/2 -translate-x-1/2 w-full text-center pointer-events-none">Input Pengukuran</h1>
         </div>
+
+        <InfoPanel title="Cara mengisi pengukuran">
+          Pilih bulan pengukuran, lalu isi angka sesuai hasil ukur. Jika bulan sudah pernah diukur, field dikunci dan perubahan dilakukan melalui Edit Data Balita.
+        </InfoPanel>
 
         <Card className="p-5 bg-white border border-gray-100 shadow-sm rounded-xl flex items-center gap-4">
           <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${

@@ -1,6 +1,20 @@
-import { Balita, Pengukuran, Absensi, BerandaStats, KaderProfile } from "@/types";
+import {
+  Balita,
+  Pengukuran,
+  Absensi,
+  BerandaStats,
+  KaderProfile,
+} from "@/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+
+function getApiUrl() {
+  if (!API_URL) {
+    throw new Error("NEXT_PUBLIC_API_URL belum dikonfigurasi.");
+  }
+
+  return API_URL;
+}
 
 // Client-side cookie utilities
 function setCookie(name: string, value: string, days: number) {
@@ -34,7 +48,7 @@ async function authFetch(url: string, options: RequestInit = {}) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}${url}`, {
+  const response = await fetch(`${getApiUrl()}${url}`, {
     ...options,
     headers,
   });
@@ -56,7 +70,7 @@ export async function login(
   password: string,
 ): Promise<{ success: boolean; token?: string; error?: string }> {
   try {
-    const res = await fetch(`${API_URL}/auth/login`, {
+    const res = await fetch(`${getApiUrl()}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifier, password }),

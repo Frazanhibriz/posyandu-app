@@ -1,30 +1,36 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Search, ChevronDown, Baby, ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import {
+  Baby,
+  CheckCircle2,
+  ChevronDown,
+  Search,
+  Users,
+  XCircle,
+} from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Card from "@/components/ui/Card";
+import { EmptyState, InfoPanel, PageHeader } from "@/components/ui/PageParts";
 import { getBalitaList, getAbsensiList, bulkUpdateAbsensi } from "@/lib/api";
-import { Balita, Absensi } from "@/types";
+import { Absensi, Balita } from "@/types";
 
 const months = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
+  "Januari",
+  "Februari",
+  "Maret",
+  "April",
   "Mei",
-  "Jun",
-  "Jul",
-  "Ags",
-  "Sep",
-  "Okt",
-  "Nov",
-  "Des",
+  "Juni",
+  "Juli",
+  "Agustus",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
 ];
 
 export default function AbsenBalitaPage() {
-  const router = useRouter();
   const [filter, setFilter] = useState("Semua");
   const [searchTerm, setSearchTerm] = useState("");
   const [balitaList, setBalitaList] = useState<Balita[]>([]);
@@ -32,17 +38,15 @@ export default function AbsenBalitaPage() {
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
   const monthOptions = months.slice(0, currentMonth);
-
-  const currentMonthName = months[currentMonth - 1];
-  const [selectedMonth, setSelectedMonth] = useState(currentMonthName);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const selectedMonthName = months[selectedMonth - 1];
 
   useEffect(() => {
     getBalitaList().then(setBalitaList).catch(console.error);
   }, []);
 
   useEffect(() => {
-    const bulanIndex = months.indexOf(selectedMonth) + 1;
-    getAbsensiList(bulanIndex, currentYear)
+    getAbsensiList(selectedMonth, currentYear)
       .then(setAbsenData)
       .catch(console.error);
   }, [selectedMonth, currentYear]);
@@ -52,37 +56,37 @@ export default function AbsenBalitaPage() {
     newStatus: "hadir" | "tidak",
   ) => {
     const isHadir = newStatus === "hadir";
-    const bulanIndex = months.indexOf(selectedMonth) + 1;
 
-    // Optimistic update
     setAbsenData((prev) => {
-      const existing = prev.find((a) => a.balitaId === id);
+      const existing = prev.find((absensi) => absensi.balitaId === id);
       if (existing) {
-        return prev.map((a) => (a.balitaId === id ? { ...a, isHadir } : a));
-      } else {
-        return [
-          ...prev,
-          { balitaId: id, isHadir, bulan: bulanIndex, tahun: currentYear },
-        ];
+        return prev.map((absensi) =>
+          absensi.balitaId === id ? { ...absensi, isHadir } : absensi,
+        );
       }
+
+      return [
+        ...prev,
+        { balitaId: id, isHadir, bulan: selectedMonth, tahun: currentYear },
+      ];
     });
 
     try {
       await bulkUpdateAbsensi([
-        { balitaId: id, isHadir, bulan: bulanIndex, tahun: currentYear },
+        { balitaId: id, isHadir, bulan: selectedMonth, tahun: currentYear },
       ]);
     } catch {
-      // Revert if API call fails
-      const list = await getAbsensiList(bulanIndex, currentYear);
+      const list = await getAbsensiList(selectedMonth, currentYear);
       setAbsenData(list);
     }
   };
 
+  const hadirCount = absenData.filter((absensi) => absensi.isHadir).length;
+  const belumHadirCount = Math.max(balitaList.length - hadirCount, 0);
   const filteredData = balitaList.filter((item) => {
-    const absen = absenData.find((a) => a.balitaId === item.id);
-    const currentStatus = absen ? (absen.isHadir ? "hadir" : "tidak") : "tidak"; // default "tidak" if no record? or maybe leave as "belum dicatat"?
-    // If we assume default is "tidak" or just missing
-    // Let's say if no record, they are not present.
+    const absen = absenData.find((absensi) => absensi.balitaId === item.id);
+    const currentStatus = absen?.isHadir ? "hadir" : "tidak";
+
     if (filter === "Sudah hadir" && currentStatus !== "hadir") return false;
     if (filter === "Belum hadir" && currentStatus !== "tidak") return false;
     return item.nama.toLowerCase().includes(searchTerm.toLowerCase());
@@ -91,71 +95,113 @@ export default function AbsenBalitaPage() {
   return (
     <div className="min-h-screen bg-gray-50 text-black font-sans pb-10">
       <Navbar title="Absen Balita" />
-      <main className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6 mt-2">
-        <div className="grid grid-cols-1 gap-4">
-          <div className="space-y-1">
-            <label className="text-[11px] font-bold text-gray-500 ml-1">
-              Bulan Absen {currentYear}
-            </label>
+      <main className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6 mt-2">
+        <PageHeader
+          eyebrow="Absensi"
+          title={`Absen ${selectedMonthName} ${currentYear}`}
+          description="Tandai hadir atau tidak hadir untuk setiap balita. Perubahan langsung disimpan ke server."
+        />
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Card className="p-4 rounded-xl">
+            <div className="flex items-center gap-3">
+              <Users className="text-blue-600" size={22} />
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  Total
+                </p>
+                <p className="text-2xl font-black text-gray-950">
+                  {balitaList.length}
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4 rounded-xl">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="text-emerald-600" size={22} />
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  Hadir
+                </p>
+                <p className="text-2xl font-black text-emerald-600">
+                  {hadirCount}
+                </p>
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4 rounded-xl">
+            <div className="flex items-center gap-3">
+              <XCircle className="text-rose-600" size={22} />
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  Belum Hadir
+                </p>
+                <p className="text-2xl font-black text-rose-600">
+                  {belumHadirCount}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        <Card className="p-4 rounded-xl">
+          <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-4">
+            <div>
+              <label className="text-xs font-black text-gray-500 ml-1">
+                Bulan absen {currentYear}
+              </label>
+              <div className="relative mt-2">
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="w-full appearance-none bg-white border border-gray-200 rounded-xl p-3.5 pr-10 text-base font-bold text-black focus:outline-none focus:ring-2 focus:ring-teal-100 shadow-sm cursor-pointer"
+                >
+                  {monthOptions.map((month, index) => (
+                    <option key={month} value={index + 1}>
+                      {month}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={18}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                />
+              </div>
+            </div>
+
             <div className="relative">
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full appearance-none bg-white border border-gray-200 rounded-xl p-3.5 text-sm font-bold text-black focus:outline-none focus:ring-1 focus:ring-teal-500 shadow-sm cursor-pointer"
-              >
-                {monthOptions.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={18}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+              <label className="text-xs font-black text-gray-500 ml-1">
+                Cari balita
+              </label>
+              <Search
+                className="absolute left-4 bottom-3.5 text-gray-400 z-10"
+                size={20}
+              />
+              <input
+                type="text"
+                placeholder="Ketik nama balita"
+                className="pl-12 pr-4 py-3.5 mt-2 border border-gray-200 rounded-xl bg-white w-full focus:outline-none focus:ring-2 focus:ring-teal-100 text-base shadow-sm font-semibold"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
-        </div>
+        </Card>
 
-        {/* Info Pilihan Absen */}
-        <div className="bg-[#f0fbf9] border border-teal-100 rounded-2xl p-4 flex items-start gap-3">
-          <div className="w-5 h-5 rounded-full bg-[#0d9488] text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-sm">
-            i
-          </div>
-          <div>
-            <p className="text-xs text-teal-900 font-bold leading-relaxed">
-              Informasi Pilihan Absen
-            </p>
-            <p className="text-[11px] text-teal-700 font-semibold leading-relaxed mt-0.5">
-              Pilihan bulan hanya tersedia dari Jan sampai {currentMonthName}{" "}
-              pada tahun {currentYear}.
-            </p>
-          </div>
-        </div>
-
-        <div className="relative">
-          <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10"
-            size={20}
-          />
-          <input
-            type="text"
-            placeholder="Cari nama balita"
-            className="pl-12 pr-4 py-3.5 border border-gray-200 rounded-xl bg-white w-full focus:outline-none focus:ring-1 focus:ring-teal-500 text-sm shadow-sm font-medium"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+        <InfoPanel title="Petunjuk absensi">
+          Gunakan tombol Hadir bila balita datang ke posyandu. Gunakan Tidak bila belum hadir pada periode yang dipilih.
+        </InfoPanel>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {["Semua", "Sudah hadir", "Belum hadir"].map((tab) => (
             <button
               key={tab}
+              type="button"
               onClick={() => setFilter(tab)}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-300 active:scale-95 border ${
+              className={`px-5 py-2.5 rounded-full text-sm font-black whitespace-nowrap transition-all duration-300 active:scale-95 border ${
                 filter === tab
                   ? "bg-[#1fb999] text-white border-[#1fb999] shadow-sm shadow-teal-100"
-                  : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+                  : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
               }`}
             >
               {tab}
@@ -165,62 +211,70 @@ export default function AbsenBalitaPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredData.length > 0 ? (
-            filteredData.map((balita) => (
-              <Card
-                key={balita.id}
-                className="p-4 flex flex-wrap sm:flex-nowrap items-center justify-between bg-white border border-gray-100 shadow-sm rounded-xl gap-4"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                      balita.jenisKelamin === "PEREMPUAN"
-                        ? "bg-[#fce5f1] text-pink-500"
-                        : "bg-[#e5f5fd] text-sky-500"
-                    }`}
-                  >
-                    <Baby size={20} />
+            filteredData.map((balita) => {
+              const isHadir = absenData.find(
+                (absensi) => absensi.balitaId === balita.id,
+              )?.isHadir;
+
+              return (
+                <Card
+                  key={balita.id}
+                  className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white border border-gray-100 shadow-sm rounded-xl gap-4"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                        balita.jenisKelamin === "PEREMPUAN"
+                          ? "bg-[#fce5f1] text-pink-500"
+                          : "bg-[#e5f5fd] text-sky-500"
+                      }`}
+                    >
+                      <Baby size={22} />
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="text-base font-black text-black truncate">
+                        {balita.nama}
+                      </h2>
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">
+                        RT {balita.rt}/RW {balita.rw}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h5 className="text-sm font-bold text-black">
-                      {balita.nama}
-                    </h5>
-                    <p className="text-[11px] text-gray-500 mt-0.5">
-                      {balita.jenisKelamin === "PEREMPUAN"
-                        ? "Perempuan"
-                        : "Laki-laki"}{" "}
-                      • {balita.alamat} RT {balita.rt}
-                    </p>
+
+                  <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange(balita.id, "hadir")}
+                      className={`px-5 py-3 rounded-xl text-sm font-black transition-all active:scale-95 ${
+                        isHadir
+                          ? "bg-[#22c55e] text-white shadow-sm shadow-green-100"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      Hadir
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange(balita.id, "tidak")}
+                      className={`px-5 py-3 rounded-xl text-sm font-black transition-all active:scale-95 ${
+                        isHadir === false
+                          ? "bg-[#ffe4e6] text-[#e11d48] shadow-sm shadow-rose-100"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      Tidak
+                    </button>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 ml-auto w-full sm:w-auto mt-2 sm:mt-0">
-                  <button
-                    onClick={() => handleStatusChange(balita.id, "hadir")}
-                    className={`flex-1 sm:flex-none px-6 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-                      absenData.find((a) => a.balitaId === balita.id)?.isHadir
-                        ? "bg-[#22c55e] text-white shadow-sm shadow-green-100"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    Hadir
-                  </button>
-                  <button
-                    onClick={() => handleStatusChange(balita.id, "tidak")}
-                    className={`flex-1 sm:flex-none px-6 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-                      absenData.find((a) => a.balitaId === balita.id) &&
-                      !absenData.find((a) => a.balitaId === balita.id)?.isHadir
-                        ? "bg-[#ffe4e6] text-[#e11d48] shadow-sm shadow-rose-100"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    Tidak
-                  </button>
-                </div>
-              </Card>
-            ))
+                </Card>
+              );
+            })
           ) : (
-            <p className="text-center py-6 text-xs text-gray-400 font-medium font-sans">
-              Belum ada data balita atau tidak ditemukan...
-            </p>
+            <div className="md:col-span-2">
+              <EmptyState
+                title="Data tidak ditemukan"
+                description="Coba ganti filter atau ketik nama balita lainnya."
+              />
+            </div>
           )}
         </div>
       </main>

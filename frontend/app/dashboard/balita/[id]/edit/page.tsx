@@ -5,6 +5,7 @@ import { ArrowLeft, Baby, ChevronDown } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Card from "@/components/ui/Card";
+import { InfoPanel } from "@/components/ui/PageParts";
 import { getBalitaById, updateBalita, updatePengukuranBalita } from "@/lib/api";
 import { Balita } from "@/types";
 import { useToast } from "@/components/ui/Toast";
@@ -49,6 +50,52 @@ function calculateAgeInMonths(birthDateString: string): number | null {
   }
 
   return Math.max(months, 0);
+}
+
+type MeasurementEditInputProps = {
+  label: string;
+  suffix: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
+  hint?: string;
+};
+
+function MeasurementEditInput({
+  label,
+  suffix,
+  value,
+  onChange,
+  disabled = false,
+  placeholder = "0.0",
+  hint,
+}: MeasurementEditInputProps) {
+  return (
+    <div className="space-y-1">
+      <label className="text-xs font-bold text-black">{label}</label>
+      <div
+        className={`relative rounded-xl border overflow-hidden transition-all shadow-sm ${
+          disabled
+            ? "border-gray-100 bg-gray-50"
+            : "border-gray-200 bg-white focus-within:ring-1 focus-within:ring-teal-500"
+        }`}
+      >
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="w-full p-3.5 pr-12 text-sm text-black font-bold outline-none bg-transparent placeholder:text-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed"
+        />
+        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 pointer-events-none">
+          {suffix}
+        </span>
+      </div>
+      {hint && <p className="text-[10px] font-medium text-gray-400">{hint}</p>}
+    </div>
+  );
 }
 
 export default function EditBalitaPage() {
@@ -269,6 +316,10 @@ export default function EditBalitaPage() {
           </h1>
         </div>
 
+        <InfoPanel title="Panduan edit data">
+          Ubah biodata balita di kolom kiri. Pilih bulan pengukuran di kolom kanan; jika belum ada data pada bulan tersebut, isi pengukuran baru lewat halaman Input Pengukuran.
+        </InfoPanel>
+
         <Card className="p-5 bg-white border border-gray-100 shadow-sm rounded-xl flex items-center gap-4">
           <div
             className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
@@ -455,65 +506,40 @@ export default function EditBalitaPage() {
                   : `Belum ada data pengukuran untuk ${selectedMonthName} ${currentYear}. Input pengukuran baru melalui halaman Input Pengukuran.`}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-black">
-                    Panjang (cm)
-                  </label>
-                  <input
-                    type="number"
-                    value={panjangPengukuran}
-                    onChange={(e) => setPanjangPengukuran(e.target.value)}
-                    placeholder="0.0"
-                    disabled={isMeasurementMissing}
-                    className="w-full border border-gray-200 rounded-xl p-3.5 text-sm text-black font-bold focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white shadow-sm disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-                  />
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <MeasurementEditInput
+                  label="Panjang"
+                  suffix="cm"
+                  value={panjangPengukuran}
+                  onChange={setPanjangPengukuran}
+                  disabled={isMeasurementMissing}
+                />
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-black">
-                    Berat (kg)
-                  </label>
-                  <input
-                    type="number"
-                    value={beratPengukuran}
-                    onChange={(e) => setBeratPengukuran(e.target.value)}
-                    placeholder="0.0"
-                    disabled={isMeasurementMissing}
-                    className="w-full border border-gray-200 rounded-xl p-3.5 text-sm text-black font-bold focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white shadow-sm disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-                  />
-                </div>
+                <MeasurementEditInput
+                  label="Berat"
+                  suffix="kg"
+                  value={beratPengukuran}
+                  onChange={setBeratPengukuran}
+                  disabled={isMeasurementMissing}
+                />
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-black">
-                    L. Kepala (cm)
-                  </label>
-                  <input
-                    type="number"
-                    value={lingkarKepalaPengukuran}
-                    onChange={(e) => setLingkarKepalaPengukuran(e.target.value)}
-                    placeholder="0.0"
-                    disabled={isMeasurementMissing}
-                    className="w-full border border-gray-200 rounded-xl p-3.5 text-sm text-black font-bold focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white shadow-sm disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-                  />
-                </div>
+                <MeasurementEditInput
+                  label="L. Kepala"
+                  suffix="cm"
+                  value={lingkarKepalaPengukuran}
+                  onChange={setLingkarKepalaPengukuran}
+                  disabled={isMeasurementMissing}
+                />
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-black">
-                    L. Lengan (cm)
-                  </label>
-                  <input
-                    type="number"
-                    value={isLilaDisabled ? "" : lingkarLenganPengukuran}
-                    onChange={(e) => setLingkarLenganPengukuran(e.target.value)}
-                    placeholder={isLilaDisabled ? "Tidak wajib" : "0.0"}
-                    disabled={isLilaDisabled || isMeasurementMissing}
-                    className="w-full border border-gray-200 rounded-xl p-3.5 text-sm text-black font-bold focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white shadow-sm disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-                  />
-                  <p className="text-[10px] font-medium text-gray-400">
-                    Hanya untuk balita usia &gt; 6 bulan
-                  </p>
-                </div>
+                <MeasurementEditInput
+                  label="L. Lengan"
+                  suffix="cm"
+                  value={isLilaDisabled ? "" : lingkarLenganPengukuran}
+                  onChange={setLingkarLenganPengukuran}
+                  placeholder={isLilaDisabled ? "Tidak wajib" : "0.0"}
+                  disabled={isLilaDisabled || isMeasurementMissing}
+                  hint="Hanya untuk balita usia > 6 bulan"
+                />
               </div>
             </div>
           </div>
