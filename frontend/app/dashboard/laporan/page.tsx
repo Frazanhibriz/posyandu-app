@@ -188,14 +188,14 @@ export default function LaporanPage() {
     })
     .filter((item) => !item.isHadir || !item.isMeasured)
     .slice(0, 5);
-  const rwStats = Object.values(
+  const rtStats = Object.values(
     balitaList.reduce<
       Record<
         string,
-        { rw: string; total: number; hadir: number; diukur: number }
+        { rt: string; total: number; hadir: number; diukur: number }
       >
     >((acc, balita) => {
-      const rw = String(balita.rw || "-");
+      const rt = String(balita.rt || "-");
       const isHadir = absenList.find((absen) => absen.balitaId === balita.id)?.isHadir;
       const isMeasured = balita.pengukuran?.some(
         (pengukuran) =>
@@ -203,16 +203,16 @@ export default function LaporanPage() {
           pengukuran.tahun === selectedYearNumber,
       );
 
-      if (!acc[rw]) {
-        acc[rw] = { rw, total: 0, hadir: 0, diukur: 0 };
+      if (!acc[rt]) {
+        acc[rt] = { rt, total: 0, hadir: 0, diukur: 0 };
       }
 
-      acc[rw].total += 1;
-      if (isHadir) acc[rw].hadir += 1;
-      if (isMeasured) acc[rw].diukur += 1;
+      acc[rt].total += 1;
+      if (isHadir) acc[rt].hadir += 1;
+      if (isMeasured) acc[rt].diukur += 1;
       return acc;
     }, {}),
-  ).sort((a, b) => Number(a.rw) - Number(b.rw));
+  ).sort((a, b) => a.rt.localeCompare(b.rt, "id", { numeric: true }));
 
   const handleExportExcel = async () => {
     try {
@@ -408,10 +408,10 @@ export default function LaporanPage() {
               <div className="flex items-center justify-between gap-4 mb-5">
                 <div>
                   <h4 className="text-sm font-bold text-gray-900">
-                    Rekap Per RW
+                    Rekap Per RT
                   </h4>
                   <p className="text-xs font-medium text-gray-500 mt-1">
-                    Ringkasan kehadiran dan pengukuran per wilayah.
+                    Ringkasan kehadiran dan pengukuran per RT di RW 09.
                   </p>
                 </div>
                 <MapPinned size={22} className="text-[#0d9488]" />
@@ -420,18 +420,18 @@ export default function LaporanPage() {
               <div className="overflow-x-auto">
                 <div className="min-w-[520px]">
                   <div className="grid grid-cols-4 text-[11px] font-bold text-gray-400 pb-3 border-b border-gray-100">
-                    <div>RW</div>
+                    <div>RT</div>
                     <div className="text-center">Sasaran</div>
                     <div className="text-center">Hadir</div>
                     <div className="text-center">Diukur</div>
                   </div>
-                  {rwStats.length > 0 ? (
-                    rwStats.map((item) => (
+                  {rtStats.length > 0 ? (
+                    rtStats.map((item) => (
                       <div
-                        key={item.rw}
+                        key={item.rt}
                         className="grid grid-cols-4 items-center text-xs font-bold text-gray-800 py-3 border-b border-gray-50 last:border-0"
                       >
-                        <div>RW {item.rw}</div>
+                        <div>RT {item.rt}</div>
                         <div className="text-center">{item.total}</div>
                         <div className="text-center text-emerald-600">{item.hadir}</div>
                         <div className="text-center text-[#0d9488]">{item.diukur}</div>
@@ -439,7 +439,7 @@ export default function LaporanPage() {
                     ))
                   ) : (
                     <p className="text-center py-6 text-xs font-semibold text-gray-400">
-                      Belum ada data RW untuk periode ini.
+                      Belum ada data RT untuk periode ini.
                     </p>
                   )}
                 </div>

@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Card from "@/components/ui/Card";
+import { InfoPanel } from "@/components/ui/PageParts";
 import { getBalitaById, deleteBalita, getEvaluasi } from "@/lib/api";
 import { Balita } from "@/types";
 import { useToast } from "@/components/ui/Toast";
@@ -279,6 +280,10 @@ export default function DetailBalitaPage() {
             <Trash2 size={20} />
           </button>
         </div>
+
+        <InfoPanel title="Panduan detail balita">
+          Gunakan tombol Ukur untuk menambah pengukuran, Edit Data untuk memperbaiki biodata atau pengukuran yang sudah ada, dan lihat grafik untuk memantau perubahan dari bulan ke bulan.
+        </InfoPanel>
 
         {/* Responsive Grid Wrapper */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">

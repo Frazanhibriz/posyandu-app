@@ -1,45 +1,115 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-  ArrowLeft, 
-  Calendar, 
-  CheckCircle2, 
-  ChevronRight, 
+import {
+  ArrowLeft,
+  Calendar,
+  CheckCircle2,
+  ChevronRight,
   AlertCircle,
-  Sparkles
+  Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Card from "@/components/ui/Card";
+import { InfoPanel } from "@/components/ui/PageParts";
 import { createBalita } from "@/lib/api";
+
+const FIXED_ALAMAT = "Kecamatan Sidorejo Kidul";
+const FIXED_RW = "09";
 
 function formatAgeDetailed(birthDateString: string): string {
   if (!birthDateString) return "";
   const birthDate = new Date(birthDateString);
   const today = new Date();
-  
+
   let years = today.getFullYear() - birthDate.getFullYear();
   let months = today.getMonth() - birthDate.getMonth();
   let days = today.getDate() - birthDate.getDate();
-  
+
   if (days < 0) {
     const prevMonth = new Date(today.getFullYear(), today.getMonth(), 0);
     days += prevMonth.getDate();
     months--;
   }
-  
+
   if (months < 0) {
     months += 12;
     years--;
   }
-  
+
   const parts = [];
   if (years > 0) parts.push(`${years} tahun`);
   if (months > 0) parts.push(`${months} bulan`);
   if (days > 0 || parts.length === 0) parts.push(`${days} hari`);
-  
+
   return parts.join(" ");
+}
+
+type MeasurementInputFieldProps = {
+  id: string;
+  label: string;
+  suffix: string;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+  required?: boolean;
+  disabled?: boolean;
+  placeholder?: string;
+  step?: string;
+  hint?: string;
+};
+
+function MeasurementInputField({
+  id,
+  label,
+  suffix,
+  value,
+  onChange,
+  error,
+  required = false,
+  disabled = false,
+  placeholder = "0.0",
+  step = "0.1",
+  hint,
+}: MeasurementInputFieldProps) {
+  return (
+    <div className="space-y-2">
+      <label htmlFor={id} className="block text-xs font-bold text-gray-700">
+        {label}
+        {required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      <div
+        className={`relative rounded-xl border overflow-hidden transition-all shadow-sm ${
+          disabled
+            ? "border-gray-100 bg-gray-50"
+            : error
+              ? "border-rose-400 bg-white focus-within:ring-2 focus-within:ring-rose-200"
+              : "border-gray-200 bg-white focus-within:ring-2 focus-within:ring-teal-500/20 focus-within:border-teal-500"
+        }`}
+      >
+        <input
+          type="number"
+          id={id}
+          step={step}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          className="w-full px-3 py-3 pr-12 outline-none text-sm text-black bg-transparent disabled:text-gray-400 disabled:cursor-not-allowed placeholder:text-gray-300"
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500 pointer-events-none">
+          {suffix}
+        </span>
+      </div>
+      {hint && <span className="block text-[9px] text-gray-400">{hint}</span>}
+      {error && (
+        <p className="text-[10px] text-rose-500 flex items-center gap-1 font-medium">
+          <AlertCircle size={10} /> {error}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default function TambahBalitaPage() {
@@ -48,7 +118,7 @@ export default function TambahBalitaPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [countdown, setCountdown] = useState(4);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  
+
   // Form State
   const [formData, setFormData] = useState({
     // Step 1: Identitas Balita
@@ -56,9 +126,9 @@ export default function TambahBalitaPage() {
     nikBalita: "",
     jenisKelamin: "Laki-laki", // Laki-laki | Perempuan
     anakKe: "",
-    alamat: "",
+    alamat: FIXED_ALAMAT,
     rt: "",
-    rw: "",
+    rw: FIXED_RW,
 
     // Step 2: Data Wali
     namaWali: "",
@@ -71,7 +141,7 @@ export default function TambahBalitaPage() {
     beratLahir: "",
     lingkarKepalaLahir: "",
     usiaKehamilan: "",
-    
+
     // Pengukuran Bulan Sekarang
     panjangSekarang: "",
     beratSekarang: "",
@@ -90,14 +160,14 @@ export default function TambahBalitaPage() {
 
     const birthDate = new Date(formData.tanggalLahir);
     const today = new Date();
-    
+
     let years = today.getFullYear() - birthDate.getFullYear();
     let months = today.getMonth() - birthDate.getMonth();
-    
+
     if (today.getDate() < birthDate.getDate()) {
       months--;
     }
-    
+
     const totalMonths = years * 12 + months;
     const finalMonths = totalMonths >= 0 ? totalMonths : 0;
     setAgeInMonths(finalMonths);
@@ -120,7 +190,7 @@ export default function TambahBalitaPage() {
   // Handle countdown redirection
   useEffect(() => {
     if (!showSuccessModal) return;
-    
+
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -143,7 +213,8 @@ export default function TambahBalitaPage() {
   // Validation functions
   const validateStep1 = () => {
     const newErrors: { [key: string]: string } = {};
-    if (!formData.namaBalita.trim()) newErrors.namaBalita = "Nama balita wajib diisi";
+    if (!formData.namaBalita.trim())
+      newErrors.namaBalita = "Nama balita wajib diisi";
     if (formData.nikBalita && formData.nikBalita.length !== 16) {
       newErrors.nikBalita = "NIK harus terdiri dari 16 digit angka";
     }
@@ -152,10 +223,8 @@ export default function TambahBalitaPage() {
     } else if (parseInt(formData.anakKe) <= 0) {
       newErrors.anakKe = "Anak ke- harus lebih besar dari 0";
     }
-    if (!formData.alamat.trim()) newErrors.alamat = "Alamat wajib diisi";
     if (!formData.rt.trim()) newErrors.rt = "RT wajib diisi";
-    if (!formData.rw.trim()) newErrors.rw = "RW wajib diisi";
-    
+
     setErrors(newErrors);
 
     // Auto-focus first error field
@@ -165,12 +234,8 @@ export default function TambahBalitaPage() {
       document.getElementById("nikBalita")?.focus();
     } else if (newErrors.anakKe) {
       document.getElementById("anakKe")?.focus();
-    } else if (newErrors.alamat) {
-      document.getElementById("alamat")?.focus();
     } else if (newErrors.rt) {
       document.getElementById("rt")?.focus();
-    } else if (newErrors.rw) {
-      document.getElementById("rw")?.focus();
     }
 
     return Object.keys(newErrors).length === 0;
@@ -182,12 +247,10 @@ export default function TambahBalitaPage() {
     if (formData.nikWali && formData.nikWali.length !== 16) {
       newErrors.nikWali = "NIK wali harus terdiri dari 16 digit angka";
     }
-    if (!formData.whatsapp.trim()) {
-      newErrors.whatsapp = "Nomor WhatsApp wajib diisi";
-    } else if (formData.whatsapp.length < 9) {
+    if (formData.whatsapp.trim() && formData.whatsapp.length < 9) {
       newErrors.whatsapp = "Masukkan nomor WhatsApp yang valid";
     }
-    
+
     setErrors(newErrors);
 
     // Auto-focus first error field
@@ -204,7 +267,7 @@ export default function TambahBalitaPage() {
 
   const validateStep3 = () => {
     const newErrors: { [key: string]: string } = {};
-    
+
     // Tanggal Lahir Validation
     if (!formData.tanggalLahir) {
       newErrors.tanggalLahir = "Tanggal lahir wajib diisi";
@@ -233,18 +296,23 @@ export default function TambahBalitaPage() {
     }
 
     // Optional field validation (>0 check)
-    if (formData.lingkarKepalaLahir && parseFloat(formData.lingkarKepalaLahir) <= 0) {
-      newErrors.lingkarKepalaLahir = "Lingkar kepala lahir harus lebih besar dari 0";
+    if (
+      formData.lingkarKepalaLahir &&
+      parseFloat(formData.lingkarKepalaLahir) <= 0
+    ) {
+      newErrors.lingkarKepalaLahir =
+        "Lingkar kepala lahir harus lebih besar dari 0";
     }
     if (formData.usiaKehamilan && parseInt(formData.usiaKehamilan) <= 0) {
       newErrors.usiaKehamilan = "Usia kehamilan harus lebih besar dari 0";
     }
-    
+
     // Pengukuran sekarang
     if (!formData.panjangSekarang) {
-      newErrors.panjangSekarang = "Panjang sekarang wajib diisi";
+      newErrors.panjangSekarang = "Panjang/Tinggi sekarang wajib diisi";
     } else if (parseFloat(formData.panjangSekarang) <= 0) {
-      newErrors.panjangSekarang = "Panjang sekarang harus lebih besar dari 0";
+      newErrors.panjangSekarang =
+        "Panjang/Tinggi sekarang harus lebih besar dari 0";
     }
 
     if (!formData.beratSekarang) {
@@ -256,19 +324,26 @@ export default function TambahBalitaPage() {
     if (!formData.lingkarKepalaSekarang) {
       newErrors.lingkarKepalaSekarang = "Lingkar kepala wajib diisi";
     } else if (parseFloat(formData.lingkarKepalaSekarang) <= 0) {
-      newErrors.lingkarKepalaSekarang = "Lingkar kepala harus lebih besar dari 0";
+      newErrors.lingkarKepalaSekarang =
+        "Lingkar kepala harus lebih besar dari 0";
     }
-    
+
     // Lingkar lengan required only if age > 6 months
     const isOver6Months = ageInMonths !== null && ageInMonths > 6;
     if (isOver6Months) {
       if (!formData.lingkarLenganSekarang) {
-        newErrors.lingkarLenganSekarang = "Lingkar lengan wajib diisi untuk balita > 6 bulan";
+        newErrors.lingkarLenganSekarang =
+          "Lingkar lengan wajib diisi untuk balita > 6 bulan";
       } else if (parseFloat(formData.lingkarLenganSekarang) <= 0) {
-        newErrors.lingkarLenganSekarang = "Lingkar lengan harus lebih besar dari 0";
+        newErrors.lingkarLenganSekarang =
+          "Lingkar lengan harus lebih besar dari 0";
       }
-    } else if (formData.lingkarLenganSekarang && parseFloat(formData.lingkarLenganSekarang) <= 0) {
-      newErrors.lingkarLenganSekarang = "Lingkar lengan harus lebih besar dari 0";
+    } else if (
+      formData.lingkarLenganSekarang &&
+      parseFloat(formData.lingkarLenganSekarang) <= 0
+    ) {
+      newErrors.lingkarLenganSekarang =
+        "Lingkar lengan harus lebih besar dari 0";
     }
 
     setErrors(newErrors);
@@ -322,28 +397,39 @@ export default function TambahBalitaPage() {
     } else if (step === 3) {
       if (validateStep3()) {
         try {
+          const whatsapp = formData.whatsapp.trim();
+
           await createBalita({
             nama: formData.namaBalita,
             nik: formData.nikBalita || undefined,
-            jenisKelamin: formData.jenisKelamin === "Laki-laki" ? "LAKI_LAKI" : "PEREMPUAN",
+            jenisKelamin:
+              formData.jenisKelamin === "Laki-laki" ? "LAKI_LAKI" : "PEREMPUAN",
             namaWali: formData.namaWali,
             nikWali: formData.nikWali || undefined,
-            noWhatsapp: "0" + formData.whatsapp,
-            alamat: formData.alamat,
+            noWhatsapp: whatsapp ? "0" + whatsapp : undefined,
+            alamat: FIXED_ALAMAT,
             rt: parseInt(formData.rt),
-            rw: parseInt(formData.rw),
+            rw: parseInt(FIXED_RW, 10),
             tglLahir: formData.tanggalLahir,
             anakKe: parseInt(formData.anakKe),
             beratLahir: parseFloat(formData.beratLahir),
             panjangLahir: parseFloat(formData.panjangLahir),
-            lingkarKepalaLahir: formData.lingkarKepalaLahir ? parseFloat(formData.lingkarKepalaLahir) : null,
-            usiaKehamilan: formData.usiaKehamilan ? parseInt(formData.usiaKehamilan) : null,
+            lingkarKepalaLahir: formData.lingkarKepalaLahir
+              ? parseFloat(formData.lingkarKepalaLahir)
+              : null,
+            usiaKehamilan: formData.usiaKehamilan
+              ? parseInt(formData.usiaKehamilan)
+              : null,
             beratBadanAwal: parseFloat(formData.beratSekarang),
             tinggiBadanAwal: parseFloat(formData.panjangSekarang),
-            lingkarKepalaAwal: formData.lingkarKepalaSekarang ? parseFloat(formData.lingkarKepalaSekarang) : null,
-            lilaAwal: formData.lingkarLenganSekarang ? parseFloat(formData.lingkarLenganSekarang) : undefined,
+            lingkarKepalaAwal: formData.lingkarKepalaSekarang
+              ? parseFloat(formData.lingkarKepalaSekarang)
+              : null,
+            lilaAwal: formData.lingkarLenganSekarang
+              ? parseFloat(formData.lingkarLenganSekarang)
+              : undefined,
           });
-          
+
           setShowSuccessModal(true);
         } catch (err: any) {
           alert(err.message || "Gagal mendaftarkan balita.");
@@ -369,18 +455,17 @@ export default function TambahBalitaPage() {
       <Navbar title="Tambah Balita" />
 
       <main className="p-4 sm:p-6 max-w-md mx-auto mt-2 relative">
-        
         {/* Subheader: Back Button & Step Title */}
         <div className="flex items-center justify-between relative h-12 mb-6">
-          <button 
+          <button
             type="button"
-            onClick={handleBack} 
+            onClick={handleBack}
             className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-all bg-white shadow-sm hover:shadow active:scale-95 cursor-pointer"
           >
             {/* Custom arrow left pointing back, matching the mockup circle-arrow-left */}
             <ArrowLeft size={18} className="text-gray-700" />
           </button>
-          
+
           <h2 className="text-base sm:text-lg font-bold text-gray-900 absolute left-1/2 -translate-x-1/2 w-max pointer-events-none">
             {step === 1 && "Identitas Balita"}
             {step === 2 && "Data Wali"}
@@ -388,19 +473,26 @@ export default function TambahBalitaPage() {
           </h2>
         </div>
 
+        <div className="mb-6">
+          <InfoPanel title="Isi bertahap">
+            Lengkapi data sesuai langkah. Pengukuran awal di langkah terakhir
+            akan otomatis menjadi data pengukuran bulan ini.
+          </InfoPanel>
+        </div>
+
         {/* Stepper / Progress Bar (Three Horizontal Bars) */}
         <div className="flex gap-2.5 mb-6 px-1">
-          <div 
+          <div
             className={`h-2 flex-1 rounded-full transition-all duration-500 ${
               step >= 1 ? "bg-[#0d9488]" : "bg-gray-200"
             }`}
           />
-          <div 
+          <div
             className={`h-2 flex-1 rounded-full transition-all duration-500 ${
               step >= 2 ? "bg-[#0d9488]" : "bg-gray-200"
             }`}
           />
-          <div 
+          <div
             className={`h-2 flex-1 rounded-full transition-all duration-500 ${
               step >= 3 ? "bg-[#0d9488]" : "bg-gray-200"
             }`}
@@ -409,24 +501,28 @@ export default function TambahBalitaPage() {
 
         {/* Form Form Card */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          
           {/* STEP 1: IDENTITAS BALITA */}
           {step === 1 && (
             <Card className="p-6 space-y-5 bg-white border border-gray-100 shadow-md rounded-2xl animate-in fade-in slide-in-from-right duration-300">
               {/* Nama Balita */}
               <div className="space-y-2">
-                <label htmlFor="namaBalita" className="block text-xs font-bold text-gray-700">
+                <label
+                  htmlFor="namaBalita"
+                  className="block text-xs font-bold text-gray-700"
+                >
                   Nama Balita<span className="text-red-500 ml-0.5">*</span>
                 </label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   id="namaBalita"
                   placeholder="Contoh: Aisyah Putri"
                   value={formData.namaBalita}
-                  onChange={(e) => handleInputChange("namaBalita", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("namaBalita", e.target.value)
+                  }
                   className={`w-full px-4 py-3 border rounded-xl outline-none text-sm text-black transition-all bg-white ${
-                    errors.namaBalita 
-                      ? "border-rose-400 focus:ring-2 focus:ring-rose-200" 
+                    errors.namaBalita
+                      ? "border-rose-400 focus:ring-2 focus:ring-rose-200"
                       : "border-gray-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                   }`}
                 />
@@ -439,11 +535,14 @@ export default function TambahBalitaPage() {
 
               {/* NIK Balita */}
               <div className="space-y-2">
-                <label htmlFor="nikBalita" className="block text-xs font-bold text-gray-700">
+                <label
+                  htmlFor="nikBalita"
+                  className="block text-xs font-bold text-gray-700"
+                >
                   NIK bayi / balita
                 </label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   id="nikBalita"
                   maxLength={16}
                   placeholder="16 digit NIK"
@@ -453,8 +552,8 @@ export default function TambahBalitaPage() {
                     handleInputChange("nikBalita", val);
                   }}
                   className={`w-full px-4 py-3 border rounded-xl outline-none text-sm text-black transition-all bg-white ${
-                    errors.nikBalita 
-                      ? "border-rose-400 focus:ring-2 focus:ring-rose-200" 
+                    errors.nikBalita
+                      ? "border-rose-400 focus:ring-2 focus:ring-rose-200"
                       : "border-gray-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                   }`}
                 />
@@ -473,7 +572,9 @@ export default function TambahBalitaPage() {
                 <div className="bg-gray-100 p-1.5 rounded-2xl flex gap-1 border border-gray-50">
                   <button
                     type="button"
-                    onClick={() => handleInputChange("jenisKelamin", "Laki-laki")}
+                    onClick={() =>
+                      handleInputChange("jenisKelamin", "Laki-laki")
+                    }
                     className={`flex-1 py-3 text-center text-xs font-bold rounded-xl transition-all cursor-pointer ${
                       formData.jenisKelamin === "Laki-laki"
                         ? "bg-white text-black shadow-md border border-gray-100/50"
@@ -484,7 +585,9 @@ export default function TambahBalitaPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleInputChange("jenisKelamin", "Perempuan")}
+                    onClick={() =>
+                      handleInputChange("jenisKelamin", "Perempuan")
+                    }
                     className={`flex-1 py-3 text-center text-xs font-bold rounded-xl transition-all cursor-pointer ${
                       formData.jenisKelamin === "Perempuan"
                         ? "bg-white text-black shadow-md border border-gray-100/50"
@@ -498,19 +601,22 @@ export default function TambahBalitaPage() {
 
               {/* Anak Ke- */}
               <div className="space-y-2">
-                <label htmlFor="anakKe" className="block text-xs font-bold text-gray-700">
+                <label
+                  htmlFor="anakKe"
+                  className="block text-xs font-bold text-gray-700"
+                >
                   Anak ke-<span className="text-red-500 ml-0.5">*</span>
                 </label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   id="anakKe"
                   min={1}
                   placeholder="1"
                   value={formData.anakKe}
                   onChange={(e) => handleInputChange("anakKe", e.target.value)}
                   className={`w-full px-4 py-3 border rounded-xl outline-none text-sm text-black transition-all bg-white ${
-                    errors.anakKe 
-                      ? "border-rose-400 focus:ring-2 focus:ring-rose-200" 
+                    errors.anakKe
+                      ? "border-rose-400 focus:ring-2 focus:ring-rose-200"
                       : "border-gray-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                   }`}
                 />
@@ -524,42 +630,47 @@ export default function TambahBalitaPage() {
               {/* Alamat, RT, RW */}
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label htmlFor="alamat" className="block text-xs font-bold text-gray-700">
-                    Alamat Lengkap<span className="text-red-500 ml-0.5">*</span>
+                  <label
+                    htmlFor="alamat"
+                    className="block text-xs font-bold text-gray-700"
+                  >
+                    Alamat wilayah
                   </label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     id="alamat"
-                    placeholder="Contoh: Jl. Merdeka No. 1"
                     value={formData.alamat}
-                    onChange={(e) => handleInputChange("alamat", e.target.value)}
-                    className={`w-full px-4 py-3 border rounded-xl outline-none text-sm text-black transition-all bg-white ${
-                      errors.alamat 
-                        ? "border-rose-400 focus:ring-2 focus:ring-rose-200" 
-                        : "border-gray-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                    }`}
+                    readOnly
+                    aria-readonly="true"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none text-sm text-gray-700 transition-all bg-gray-50 cursor-not-allowed"
                   />
-                  {errors.alamat && (
-                    <p className="text-[10px] text-rose-500 flex items-center gap-1 font-medium">
-                      <AlertCircle size={10} /> {errors.alamat}
-                    </p>
-                  )}
+                  <span className="block text-[10px] text-gray-400">
+                    Alamat sudah ditetapkan sesuai wilayah posyandu.
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label htmlFor="rt" className="block text-xs font-bold text-gray-700">
+                    <label
+                      htmlFor="rt"
+                      className="block text-xs font-bold text-gray-700"
+                    >
                       RT<span className="text-red-500 ml-0.5">*</span>
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       id="rt"
                       placeholder="001"
                       value={formData.rt}
-                      onChange={(e) => handleInputChange("rt", e.target.value.replace(/\D/g, '').substring(0, 3))}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "rt",
+                          e.target.value.replace(/\D/g, "").substring(0, 3),
+                        )
+                      }
                       className={`w-full px-4 py-3 border rounded-xl outline-none text-sm text-black transition-all bg-white ${
-                        errors.rt 
-                          ? "border-rose-400 focus:ring-2 focus:ring-rose-200" 
+                        errors.rt
+                          ? "border-rose-400 focus:ring-2 focus:ring-rose-200"
                           : "border-gray-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                       }`}
                     />
@@ -570,26 +681,23 @@ export default function TambahBalitaPage() {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="rw" className="block text-xs font-bold text-gray-700">
-                      RW<span className="text-red-500 ml-0.5">*</span>
+                    <label
+                      htmlFor="rw"
+                      className="block text-xs font-bold text-gray-700"
+                    >
+                      RW
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       id="rw"
-                      placeholder="002"
                       value={formData.rw}
-                      onChange={(e) => handleInputChange("rw", e.target.value.replace(/\D/g, '').substring(0, 3))}
-                      className={`w-full px-4 py-3 border rounded-xl outline-none text-sm text-black transition-all bg-white ${
-                        errors.rw 
-                          ? "border-rose-400 focus:ring-2 focus:ring-rose-200" 
-                          : "border-gray-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                      }`}
+                      readOnly
+                      aria-readonly="true"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none text-sm text-gray-700 transition-all bg-gray-50 cursor-not-allowed"
                     />
-                    {errors.rw && (
-                      <p className="text-[10px] text-rose-500 flex items-center gap-1 font-medium">
-                        <AlertCircle size={10} /> {errors.rw}
-                      </p>
-                    )}
+                    <span className="block text-[10px] text-gray-400">
+                      RW tetap: 09
+                    </span>
                   </div>
                 </div>
               </div>
@@ -601,18 +709,23 @@ export default function TambahBalitaPage() {
             <Card className="p-6 space-y-5 bg-white border border-gray-100 shadow-md rounded-2xl animate-in fade-in slide-in-from-right duration-300">
               {/* Nama Wali */}
               <div className="space-y-2">
-                <label htmlFor="namaWali" className="block text-xs font-bold text-gray-700">
+                <label
+                  htmlFor="namaWali"
+                  className="block text-xs font-bold text-gray-700"
+                >
                   Nama wali<span className="text-red-500 ml-0.5">*</span>
                 </label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   id="namaWali"
                   placeholder="Nama lengkap wali"
                   value={formData.namaWali}
-                  onChange={(e) => handleInputChange("namaWali", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("namaWali", e.target.value)
+                  }
                   className={`w-full px-4 py-3 border rounded-xl outline-none text-sm text-black transition-all bg-white ${
-                    errors.namaWali 
-                      ? "border-rose-400 focus:ring-2 focus:ring-rose-200" 
+                    errors.namaWali
+                      ? "border-rose-400 focus:ring-2 focus:ring-rose-200"
                       : "border-gray-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                   }`}
                 />
@@ -625,11 +738,14 @@ export default function TambahBalitaPage() {
 
               {/* NIK Wali */}
               <div className="space-y-2">
-                <label htmlFor="nikWali" className="block text-xs font-bold text-gray-700">
+                <label
+                  htmlFor="nikWali"
+                  className="block text-xs font-bold text-gray-700"
+                >
                   NIK Wali
                 </label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   id="nikWali"
                   maxLength={16}
                   placeholder="16 digit NIK"
@@ -639,8 +755,8 @@ export default function TambahBalitaPage() {
                     handleInputChange("nikWali", val);
                   }}
                   className={`w-full px-4 py-3 border rounded-xl outline-none text-sm text-black transition-all bg-white ${
-                    errors.nikWali 
-                      ? "border-rose-400 focus:ring-2 focus:ring-rose-200" 
+                    errors.nikWali
+                      ? "border-rose-400 focus:ring-2 focus:ring-rose-200"
                       : "border-gray-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                   }`}
                 />
@@ -653,15 +769,19 @@ export default function TambahBalitaPage() {
 
               {/* WhatsApp */}
               <div className="space-y-2">
-                <label htmlFor="whatsapp" className="block text-xs font-bold text-gray-700">
-                  Nomor WhatsApp<span className="text-red-500 ml-0.5">*</span>
+                <label
+                  htmlFor="whatsapp"
+                  className="block text-xs font-bold text-gray-700"
+                >
+                  Nomor WhatsApp
+                  <span className="text-gray-400 ml-1">(opsional)</span>
                 </label>
                 <div className="flex gap-2">
                   <div className="px-4 py-3 bg-[#e9ecef] border border-gray-200 rounded-xl text-sm font-bold text-gray-700 flex items-center justify-center select-none shadow-sm">
                     +62
                   </div>
-                  <input 
-                    type="tel" 
+                  <input
+                    type="tel"
                     id="whatsapp"
                     placeholder="81234567890"
                     value={formData.whatsapp}
@@ -673,13 +793,15 @@ export default function TambahBalitaPage() {
                       handleInputChange("whatsapp", val);
                     }}
                     className={`flex-1 px-4 py-3 border rounded-xl outline-none text-sm text-black transition-all bg-white ${
-                      errors.whatsapp 
-                        ? "border-rose-400 focus:ring-2 focus:ring-rose-200" 
+                      errors.whatsapp
+                        ? "border-rose-400 focus:ring-2 focus:ring-rose-200"
                         : "border-gray-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                     }`}
                   />
                 </div>
-                <span className="block text-[10px] text-gray-400 italic">Pastikan nomor aktif</span>
+                <span className="block text-[10px] text-gray-400 italic">
+                  Boleh dikosongkan jika wali belum memiliki nomor aktif.
+                </span>
                 {errors.whatsapp && (
                   <p className="text-[10px] text-rose-500 flex items-center gap-1 font-medium">
                     <AlertCircle size={10} /> {errors.whatsapp}
@@ -692,22 +814,26 @@ export default function TambahBalitaPage() {
           {/* STEP 3: RIWAYAT & PENGUKURAN */}
           {step === 3 && (
             <Card className="p-6 space-y-6 bg-white border border-gray-100 shadow-md rounded-2xl animate-in fade-in slide-in-from-right duration-300">
-              
               {/* Tanggal Lahir */}
               <div className="space-y-2">
-                <label htmlFor="tanggalLahir" className="block text-xs font-bold text-gray-700">
+                <label
+                  htmlFor="tanggalLahir"
+                  className="block text-xs font-bold text-gray-700"
+                >
                   Tanggal lahir<span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <div className="relative">
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     id="tanggalLahir"
                     value={formData.tanggalLahir}
-                    onChange={(e) => handleInputChange("tanggalLahir", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("tanggalLahir", e.target.value)
+                    }
                     max={new Date().toISOString().split("T")[0]}
                     className={`w-full px-4 py-3 border rounded-xl outline-none text-sm text-black transition-all bg-white ${
-                      errors.tanggalLahir 
-                        ? "border-rose-400 focus:ring-2 focus:ring-rose-200" 
+                      errors.tanggalLahir
+                        ? "border-rose-400 focus:ring-2 focus:ring-rose-200"
                         : "border-gray-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                     }`}
                   />
@@ -732,102 +858,72 @@ export default function TambahBalitaPage() {
                         {formatAgeDetailed(formData.tanggalLahir)}
                       </span>
                     ) : (
-                      <span className="text-gray-400 font-medium">Pilih tanggal lahir dulu</span>
+                      <span className="text-gray-400 font-medium">
+                        Pilih tanggal lahir dulu
+                      </span>
                     )}
                   </span>
                 </div>
               </div>
 
               {/* Grid 2 Columns: Panjang Lahir & Berat Lahir */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Panjang Lahir */}
-                <div className="space-y-2">
-                  <label htmlFor="panjangLahir" className="block text-xs font-bold text-gray-700">
-                    Panjang Lahir<span className="text-red-500 ml-0.5">*</span>
-                  </label>
-                  <div className="relative flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-teal-500/20 focus-within:border-teal-500 transition-all bg-white shadow-sm">
-                    <input 
-                      type="number" 
-                      id="panjangLahir"
-                      step="0.1"
-                      placeholder="0.0"
-                      value={formData.panjangLahir}
-                      onChange={(e) => handleInputChange("panjangLahir", e.target.value)}
-                      className="flex-1 px-3 py-3 outline-none text-sm text-black"
-                    />
-                    <div className="px-3 bg-gray-50 border-l border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 select-none">
-                      cm
-                    </div>
-                  </div>
-                  {errors.panjangLahir && (
-                    <p className="text-[10px] text-rose-500 flex items-center gap-1 font-medium">
-                      <AlertCircle size={10} /> {errors.panjangLahir}
-                    </p>
-                  )}
-                </div>
+                <MeasurementInputField
+                  id="panjangLahir"
+                  label="Panjang Lahir"
+                  suffix="cm"
+                  value={formData.panjangLahir}
+                  onChange={(value) => handleInputChange("panjangLahir", value)}
+                  error={errors.panjangLahir}
+                  required
+                />
 
                 {/* Berat Lahir */}
-                <div className="space-y-2">
-                  <label htmlFor="beratLahir" className="block text-xs font-bold text-gray-700">
-                    Berat Lahir<span className="text-red-500 ml-0.5">*</span>
-                  </label>
-                  <div className="relative flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-teal-500/20 focus-within:border-teal-500 transition-all bg-white shadow-sm">
-                    <input 
-                      type="number" 
-                      id="beratLahir"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={formData.beratLahir}
-                      onChange={(e) => handleInputChange("beratLahir", e.target.value)}
-                      className="flex-1 px-3 py-3 outline-none text-sm text-black"
-                    />
-                    <div className="px-3 bg-gray-50 border-l border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 select-none">
-                      kg
-                    </div>
-                  </div>
-                  {errors.beratLahir && (
-                    <p className="text-[10px] text-rose-500 flex items-center gap-1 font-medium">
-                      <AlertCircle size={10} /> {errors.beratLahir}
-                    </p>
-                  )}
-                </div>
+                <MeasurementInputField
+                  id="beratLahir"
+                  label="Berat Lahir"
+                  suffix="kg"
+                  value={formData.beratLahir}
+                  onChange={(value) => handleInputChange("beratLahir", value)}
+                  error={errors.beratLahir}
+                  required
+                  step="0.01"
+                  placeholder="0.00"
+                />
               </div>
 
               {/* Grid 2 Columns: Lingkar Kepala Lahir & Usia Kehamilan */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Lingkar Kepala Lahir */}
-                <div className="space-y-2">
-                  <label htmlFor="lingkarKepalaLahir" className="block text-xs font-bold text-gray-700">
-                    Lingkar Kepala Lahir
-                  </label>
-                  <div className="relative flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-teal-500/20 focus-within:border-teal-500 transition-all bg-white shadow-sm">
-                    <input 
-                      type="number" 
-                      id="lingkarKepalaLahir"
-                      step="0.1"
-                      placeholder="0.0"
-                      value={formData.lingkarKepalaLahir}
-                      onChange={(e) => handleInputChange("lingkarKepalaLahir", e.target.value)}
-                      className="flex-1 px-3 py-3 outline-none text-sm text-black"
-                    />
-                    <div className="px-3 bg-gray-50 border-l border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 select-none">
-                      cm
-                    </div>
-                  </div>
-                </div>
+                <MeasurementInputField
+                  id="lingkarKepalaLahir"
+                  label="Lingkar Kepala Lahir"
+                  suffix="cm"
+                  value={formData.lingkarKepalaLahir}
+                  onChange={(value) =>
+                    handleInputChange("lingkarKepalaLahir", value)
+                  }
+                  error={errors.lingkarKepalaLahir}
+                />
 
                 {/* Usia Kehamilan */}
                 <div className="space-y-2">
-                  <label htmlFor="usiaKehamilan" className="block text-xs font-bold text-gray-700">
+                  <label
+                    htmlFor="usiaKehamilan"
+                    className="block text-xs font-bold text-gray-700"
+                  >
                     Usia Kehamilan
                   </label>
                   <div className="relative flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-teal-500/20 focus-within:border-teal-500 transition-all bg-white shadow-sm">
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       id="usiaKehamilan"
                       placeholder="Minggu"
                       value={formData.usiaKehamilan}
-                      onChange={(e) => handleInputChange("usiaKehamilan", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("usiaKehamilan", e.target.value)
+                      }
                       className="w-full px-3 py-3 outline-none text-sm text-black"
                     />
                   </div>
@@ -844,129 +940,74 @@ export default function TambahBalitaPage() {
                 </h3>
 
                 {/* Grid 2 Columns: Panjang Sekarang & Berat Sekarang */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Panjang Sekarang */}
-                  <div className="space-y-2">
-                    <label htmlFor="panjangSekarang" className="block text-xs font-bold text-gray-700">
-                      Panjang Sekarang<span className="text-red-500 ml-0.5">*</span>
-                    </label>
-                    <div className="relative flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-teal-500/20 focus-within:border-teal-500 transition-all bg-white shadow-sm">
-                      <input 
-                        type="number" 
-                        id="panjangSekarang"
-                        step="0.1"
-                        placeholder="0.0"
-                        value={formData.panjangSekarang}
-                        onChange={(e) => handleInputChange("panjangSekarang", e.target.value)}
-                        className="flex-1 px-3 py-3 outline-none text-sm text-black"
-                      />
-                      <div className="px-3 bg-gray-50 border-l border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 select-none">
-                        cm
-                      </div>
-                    </div>
-                    {errors.panjangSekarang && (
-                      <p className="text-[10px] text-rose-500 flex items-center gap-1 font-medium">
-                        <AlertCircle size={10} /> {errors.panjangSekarang}
-                      </p>
-                    )}
-                  </div>
+                  <MeasurementInputField
+                    id="panjangSekarang"
+                    label="Panjang/Tinggi Sekarang"
+                    suffix="cm"
+                    value={formData.panjangSekarang}
+                    onChange={(value) =>
+                      handleInputChange("panjangSekarang", value)
+                    }
+                    error={errors.panjangSekarang}
+                    required
+                  />
 
                   {/* Berat Sekarang */}
-                  <div className="space-y-2">
-                    <label htmlFor="beratSekarang" className="block text-xs font-bold text-gray-700">
-                      Berat Sekarang<span className="text-red-500 ml-0.5">*</span>
-                    </label>
-                    <div className="relative flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-teal-500/20 focus-within:border-teal-500 transition-all bg-white shadow-sm">
-                      <input 
-                        type="number" 
-                        id="beratSekarang"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={formData.beratSekarang}
-                        onChange={(e) => handleInputChange("beratSekarang", e.target.value)}
-                        className="flex-1 px-3 py-3 outline-none text-sm text-black"
-                      />
-                      <div className="px-3 bg-gray-50 border-l border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 select-none">
-                        kg
-                      </div>
-                    </div>
-                    {errors.beratSekarang && (
-                      <p className="text-[10px] text-rose-500 flex items-center gap-1 font-medium">
-                        <AlertCircle size={10} /> {errors.beratSekarang}
-                      </p>
-                    )}
-                  </div>
+                  <MeasurementInputField
+                    id="beratSekarang"
+                    label="Berat Sekarang"
+                    suffix="kg"
+                    value={formData.beratSekarang}
+                    onChange={(value) =>
+                      handleInputChange("beratSekarang", value)
+                    }
+                    error={errors.beratSekarang}
+                    required
+                    step="0.01"
+                    placeholder="0.00"
+                  />
                 </div>
 
                 {/* Grid 2 Columns: Lingkar Kepala & Lingkar Lengan */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Lingkar Kepala Sekarang */}
-                  <div className="space-y-2">
-                    <label htmlFor="lingkarKepalaSekarang" className="block text-xs font-bold text-gray-700">
-                      Lingkar Kepala<span className="text-red-500 ml-0.5">*</span>
-                    </label>
-                    <div className="relative flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-teal-500/20 focus-within:border-teal-500 transition-all bg-white shadow-sm">
-                      <input 
-                        type="number" 
-                        id="lingkarKepalaSekarang"
-                        step="0.1"
-                        placeholder="0.0"
-                        value={formData.lingkarKepalaSekarang}
-                        onChange={(e) => handleInputChange("lingkarKepalaSekarang", e.target.value)}
-                        className="flex-1 px-3 py-3 outline-none text-sm text-black"
-                      />
-                      <div className="px-3 bg-gray-50 border-l border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 select-none">
-                        cm
-                      </div>
-                    </div>
-                    {errors.lingkarKepalaSekarang && (
-                      <p className="text-[10px] text-rose-500 flex items-center gap-1 font-medium">
-                        <AlertCircle size={10} /> {errors.lingkarKepalaSekarang}
-                      </p>
-                    )}
-                  </div>
+                  <MeasurementInputField
+                    id="lingkarKepalaSekarang"
+                    label="Lingkar Kepala"
+                    suffix="cm"
+                    value={formData.lingkarKepalaSekarang}
+                    onChange={(value) =>
+                      handleInputChange("lingkarKepalaSekarang", value)
+                    }
+                    error={errors.lingkarKepalaSekarang}
+                    required
+                  />
 
                   {/* Lingkar Lengan Sekarang */}
-                  <div className="space-y-2">
-                    <label htmlFor="lingkarLenganSekarang" className="block text-xs font-bold text-gray-700">
-                      Lingkar lengan{ageInMonths !== null && ageInMonths > 6 ? <span className="text-red-500 ml-0.5">*</span> : ""}
-                    </label>
-                    <div className={`relative flex rounded-xl border overflow-hidden transition-all shadow-sm ${
-                      ageInMonths !== null && ageInMonths > 6
-                        ? "border-gray-200 focus-within:ring-2 focus-within:ring-teal-500/20 focus-within:border-teal-500 bg-white"
-                        : "border-gray-100 bg-gray-50"
-                    }`}>
-                      <input 
-                        type="number" 
-                        id="lingkarLenganSekarang"
-                        step="0.1"
-                        placeholder={
-                          ageInMonths === null
-                            ? "Isi tanggal lahir dulu"
-                            : ageInMonths <= 6
-                            ? "Tidak wajib (≤ 6 bulan)"
-                            : "0.0"
-                        }
-                        value={formData.lingkarLenganSekarang}
-                        onChange={(e) => handleInputChange("lingkarLenganSekarang", e.target.value)}
-                        disabled={ageInMonths === null || ageInMonths <= 6}
-                        className="flex-1 px-3 py-3 outline-none text-sm text-black disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-                      />
-                      <div className="px-3 bg-gray-50 border-l border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 select-none">
-                        cm
-                      </div>
-                    </div>
-                    <span className="block text-[9px] text-gray-400">Untuk balita usia &gt; 6 bulan</span>
-                    {errors.lingkarLenganSekarang && (
-                      <p className="text-[10px] text-rose-500 flex items-center gap-1 font-medium">
-                        <AlertCircle size={10} /> {errors.lingkarLenganSekarang}
-                      </p>
-                    )}
-                  </div>
+                  <MeasurementInputField
+                    id="lingkarLenganSekarang"
+                    label="Lingkar lengan"
+                    suffix="cm"
+                    value={formData.lingkarLenganSekarang}
+                    onChange={(value) =>
+                      handleInputChange("lingkarLenganSekarang", value)
+                    }
+                    error={errors.lingkarLenganSekarang}
+                    required={ageInMonths !== null && ageInMonths > 6}
+                    disabled={ageInMonths === null || ageInMonths <= 6}
+                    placeholder={
+                      ageInMonths === null
+                        ? "Isi tanggal lahir dulu"
+                        : ageInMonths <= 6
+                          ? "Tidak wajib (<= 6 bulan)"
+                          : "0.0"
+                    }
+                    hint="Untuk balita usia > 6 bulan"
+                  />
                 </div>
-
               </div>
-
             </Card>
           )}
 
@@ -1021,14 +1062,12 @@ export default function TambahBalitaPage() {
               </div>
             )}
           </div>
-
         </form>
 
         {/* HIGH-FIDELITY SUCCESS MODAL */}
         {showSuccessModal && (
           <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-300">
             <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl relative overflow-hidden border border-teal-50/50 animate-in zoom-in-95 slide-in-from-bottom-8 duration-300">
-              
               {/* Decorative particles */}
               <div className="absolute top-4 left-6 text-teal-400 animate-bounce">
                 <Sparkles size={20} />
@@ -1047,26 +1086,39 @@ export default function TambahBalitaPage() {
                 Pendaftaran Berhasil! 🎉
               </h3>
               <p className="text-xs text-gray-600 leading-relaxed mb-6">
-                Data balita <strong>{formData.namaBalita}</strong> telah berhasil ditambahkan ke Posyandu Sidorejo Kidul.
+                Data balita <strong>{formData.namaBalita}</strong> telah
+                berhasil ditambahkan ke Posyandu Sidorejo Kidul.
               </p>
 
               {/* Info Recap */}
               <div className="bg-[#f8f9fa] rounded-2xl p-4 text-left space-y-2 mb-6 border border-gray-100">
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-500 font-semibold">Nama Balita</span>
-                  <span className="text-black font-black truncate max-w-[160px]">{formData.namaBalita}</span>
+                  <span className="text-gray-500 font-semibold">
+                    Nama Balita
+                  </span>
+                  <span className="text-black font-black truncate max-w-[160px]">
+                    {formData.namaBalita}
+                  </span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-500 font-semibold">Jenis Kelamin</span>
-                  <span className="text-black font-black">{formData.jenisKelamin}</span>
+                  <span className="text-gray-500 font-semibold">
+                    Jenis Kelamin
+                  </span>
+                  <span className="text-black font-black">
+                    {formData.jenisKelamin}
+                  </span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-gray-500 font-semibold">Usia</span>
-                  <span className="text-black font-black">{formatAgeDetailed(formData.tanggalLahir)}</span>
+                  <span className="text-black font-black">
+                    {formatAgeDetailed(formData.tanggalLahir)}
+                  </span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-gray-500 font-semibold">Wali</span>
-                  <span className="text-black font-black truncate max-w-[160px]">{formData.namaWali}</span>
+                  <span className="text-black font-black truncate max-w-[160px]">
+                    {formData.namaWali}
+                  </span>
                 </div>
               </div>
 
@@ -1083,11 +1135,9 @@ export default function TambahBalitaPage() {
               >
                 Lihat Daftar Balita Sekarang
               </button>
-
             </div>
           </div>
         )}
-
       </main>
     </div>
   );
